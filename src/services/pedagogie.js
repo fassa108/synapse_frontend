@@ -56,6 +56,15 @@ export const desinscrireApprenant = (tenantId, promotionId, apprenantId) =>
     })
     .then((r) => r.data)
 
+// Clôture : ferme les inscriptions, promotion en lecture seule.
+export const cloturerPromotion = (tenantId, id) =>
+  api.post(`tenants/${tenantId}/promotions/${id}/cloturer/`).then((r) => r.data)
+
+// Réouverture : réactive les inscriptions fermées par la clôture.
+// Réponse : { inscriptions_reactivees, non_reactives: [{ apprenant, nom }] }
+export const rouvrirPromotion = (tenantId, id) =>
+  api.post(`tenants/${tenantId}/promotions/${id}/rouvrir/`).then((r) => r.data)
+
 export const getInscriptions = (tenantId, promotionId, params = {}) =>
   api
     .get(`tenants/${tenantId}/promotions/${promotionId}/inscriptions/`, { params })
@@ -105,6 +114,10 @@ export const creerNiveau = (tenantId, payload) =>
 
 export const modifierNiveau = (tenantId, id, payload) =>
   api.patch(`tenants/${tenantId}/niveaux/${id}/`, payload).then((r) => r.data)
+
+// Refusé par le backend si le niveau décrit déjà des compétences.
+export const supprimerNiveau = (tenantId, id) =>
+  api.delete(`tenants/${tenantId}/niveaux/${id}/`)
 
 // ─── Compétence-Niveaux ───────────────────────────────────────────────────────
 

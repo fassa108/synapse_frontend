@@ -21,6 +21,11 @@ export const navigationByRole = {
       to: '/modules',
     },
     {
+      label: 'Niveaux',
+      icon: 'fa-solid fa-stairs',
+      to: '/niveaux',
+    },
+    {
       label: 'Apprenants',
       icon: 'fa-solid fa-user-graduate',
       to: '/apprenants',
@@ -37,6 +42,11 @@ export const navigationByRole = {
       label: 'Dashboard',
       icon: 'fa-solid fa-chart-line',
       to: '/dashboard/formateur',
+    },
+    {
+      label: 'Promotions',
+      icon: 'fa-solid fa-users',
+      to: '/promotions',
     },
     {
       label: 'Formations',
@@ -72,9 +82,9 @@ export const navigationByRole = {
       to: '/livrables',
     },
     {
-      label: 'Mes compétences',
-      icon: 'fa-solid fa-bullseye',
-      to: '/competences',
+      label: 'Ma formation',
+      icon: 'fa-solid fa-graduation-cap',
+      to: '/ma-formation',
     },
   ],
 

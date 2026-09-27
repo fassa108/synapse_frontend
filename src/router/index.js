@@ -73,6 +73,60 @@ const routes = [
     meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
   },
   {
+    path: '/formations',
+    name: 'formations',
+    component: () => import('../pages/admin-organisme/FormationsPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/formations/creer',
+    name: 'formation-creer',
+    component: () => import('../pages/admin-organisme/FormationCreerPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
+  },
+  {
+    path: '/formations/:id',
+    name: 'formation-detail',
+    component: () => import('../pages/admin-organisme/FormationDetailPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/modules',
+    name: 'modules',
+    component: () => import('../pages/admin-organisme/ModulesPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
+  },
+  {
+    path: '/modules/creer',
+    name: 'module-creer',
+    component: () => import('../pages/admin-organisme/ModuleCreerPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
+  },
+  {
+    path: '/modules/:id',
+    name: 'module-detail',
+    component: () => import('../pages/admin-organisme/ModuleDetailPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/competences',
+    name: 'competences',
+    component: () => import('../pages/admin-organisme/CompetencesPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
+  },
+  {
+    path: '/competences/creer',
+    name: 'competence-creer',
+    component: () => import('../pages/admin-organisme/CompetenceCreerPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
+  },
+  {
+    path: '/niveaux',
+    name: 'niveaux',
+    component: () => import('../pages/admin-organisme/NiveauxPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
+  },
+  {
     path: '/apprenants',
     name: 'apprenants',
     component: () => import('../pages/admin-organisme/ApprenantsPage.vue'),
@@ -84,7 +138,44 @@ const routes = [
     component: () => import('../pages/admin-organisme/FormateursPage.vue'),
     meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
   },
+  {
+    path: '/promotions/creer',
+    name: 'promotion-creer',
+    component: () => import('../pages/admin-organisme/PromotionCreerPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
+  },
 
+  // ─── Pages partagées Admin Organisme + Formateur ────────────────────────────
+  {
+    path: '/promotions',
+    name: 'promotions',
+    component: () => import('../pages/shared/PromotionsPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/promotions/:id',
+    name: 'promotion-detail',
+    component: () => import('../pages/shared/PromotionDetailPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/apprenants/:id',
+    name: 'apprenant-detail',
+    component: () => import('../pages/shared/ApprenantDetailPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/groupes',
+    name: 'groupes',
+    component: () => import('../pages/shared/GroupesPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/groupes/:id',
+    name: 'groupe-detail',
+    component: () => import('../pages/shared/GroupeDetailPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
 
   // ─── Profil & Paramètres (tous rôles authentifiés) ─────────────────────────
   {
@@ -119,6 +210,12 @@ const routes = [
     path: '/dashboard/apprenant',
     name: 'dashboard-apprenant',
     component: () => import('../pages/apprenant/DashboardApprenantPage.vue'),
+    meta: { requiresAuth: true, roles: ['APPRENANT'] },
+  },
+  {
+    path: '/ma-formation',
+    name: 'ma-formation',
+    component: () => import('../pages/apprenant/MaFormationPage.vue'),
     meta: { requiresAuth: true, roles: ['APPRENANT'] },
   },
   {

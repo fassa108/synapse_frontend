@@ -1,10 +1,18 @@
 <script setup>
+import { useRoute } from 'vue-router'
+
 defineProps({
   items: {
     type: Array,
     required: true,
   },
 })
+
+const route = useRoute()
+
+// Actif aussi sur les sous-pages : /promotions/4 ou /promotions/creer
+// gardent « Promotions » sélectionné (les routes ne sont pas imbriquées).
+const estActif = (to) => route.path === to || route.path.startsWith(`${to}/`)
 </script>
 
 <template>
@@ -14,13 +22,13 @@ defineProps({
       :key="item.to"
       :to="item.to"
       custom
-      v-slot="{ isActive, navigate }"
+      v-slot="{ navigate }"
     >
       <a
         @click="navigate"
         class="flex items-center gap-3 rounded-lg px-3 py-2 font-['Plus_Jakarta_Sans'] text-sm font-medium transition-colors"
         :class="
-          isActive
+          estActif(item.to)
             ? 'bg-indigo-500 text-white'
             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
         "
@@ -29,7 +37,7 @@ defineProps({
           :class="[
             item.icon,
             'w-4 shrink-0 text-center text-sm',
-            isActive ? 'text-white' : 'text-gray-400',
+            estActif(item.to) ? 'text-white' : 'text-gray-400',
           ]"
         ></i>
         <span>{{ item.label }}</span>

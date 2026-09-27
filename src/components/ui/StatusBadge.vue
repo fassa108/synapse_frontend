@@ -6,13 +6,14 @@ import { computed } from 'vue'
  *
  * Props :
  *   - value  : valeur brute (true/false, 'PUBLIE', etc.)
- *   - type   : 'boolean' | 'compte' | 'organisme' | 'membre' | 'brief' | 'livrable'
+ *   - type   : 'boolean' | 'compte' | 'organisme' | 'membre' | 'promotion' | 'brief' | 'livrable'
  *
  * Types :
  *   - 'boolean' : Actif / Inactif     → MembreTenant.actif (appartenance à l'organisme)
  *   - 'compte'  : Activé / En attente → Utilisateur.actif (compte utilisateur activé)
  *   - 'organisme': Actif / Suspendu   → Tenant.statut
  *   - 'membre'   : Actif / Suspendu   → MembreTenant.actif (accès à l'organisme)
+ *   - 'promotion': Ouverte / Clôturée → Promotion.actif
  *   - 'brief'   : statuts BROUILLON / PUBLIE / TERMINE / ARCHIVE
  *   - 'livrable': statuts SOUMIS / INVALIDE / RETENU
  */
@@ -43,6 +44,12 @@ const config = computed(() => {
     return props.value
       ? { label: 'Actif',    classes: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' }
       : { label: 'Suspendu', classes: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }
+  }
+
+  if (props.type === 'promotion') {
+    return props.value
+      ? { label: 'Ouverte',   classes: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' }
+      : { label: 'Clôturée',  classes: 'bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200' }
   }
 
   if (props.type === 'brief') {
