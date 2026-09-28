@@ -22,22 +22,57 @@ export const modifierBrief = (tenantId, id, payload) =>
 export const supprimerBrief = (tenantId, id) =>
   api.delete(`tenants/${tenantId}/briefs/${id}/`)
 
-// ─── Ressources briefs ────────────────────────────────────────────────────────
+// ─── Catégories de brief (propres à l'organisme) ─────────────────────────────
 
-export const getRessourcesBrief = (tenantId, params = {}) =>
-  api
-    .get(`tenants/${tenantId}/ressources-briefs/`, { params })
-    .then((r) => r.data)
+export const getCategories = (tenantId) =>
+  api.get(`tenants/${tenantId}/categories-briefs/`).then((r) => r.data)
 
-export const creerRessourceBrief = (tenantId, formData) =>
-  api
-    .post(`tenants/${tenantId}/ressources-briefs/`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    .then((r) => r.data)
+export const creerCategorie = (tenantId, payload) =>
+  api.post(`tenants/${tenantId}/categories-briefs/`, payload).then((r) => r.data)
 
-export const supprimerRessourceBrief = (tenantId, id) =>
-  api.delete(`tenants/${tenantId}/ressources-briefs/${id}/`)
+export const modifierCategorie = (tenantId, id, payload) =>
+  api.patch(`tenants/${tenantId}/categories-briefs/${id}/`, payload).then((r) => r.data)
+
+// Refusé par le backend si la catégorie est utilisée par un brief.
+export const supprimerCategorie = (tenantId, id) =>
+  api.delete(`tenants/${tenantId}/categories-briefs/${id}/`)
+
+// ─── Ressources (bibliothèque de l'organisme) ────────────────────────────────
+
+export const getRessources = (tenantId, params = {}) =>
+  api.get(`tenants/${tenantId}/ressources/`, { params }).then((r) => r.data)
+
+// Un FormData (fichier) doit partir en multipart : sans cela, axios le
+// convertit en JSON (en-tête application/json par défaut) et perd le fichier.
+const optionsEnvoi = (payload) =>
+  payload instanceof FormData
+    ? { headers: { 'Content-Type': 'multipart/form-data' } }
+    : {}
+
+// payload : FormData (fichier) ou objet { titre, url }
+export const creerRessource = (tenantId, payload) =>
+  api.post(`tenants/${tenantId}/ressources/`, payload, optionsEnvoi(payload)).then((r) => r.data)
+
+export const modifierRessource = (tenantId, id, payload) =>
+  api.patch(`tenants/${tenantId}/ressources/${id}/`, payload, optionsEnvoi(payload)).then((r) => r.data)
+
+// Refusé par le backend si la ressource est jointe à un brief.
+export const supprimerRessource = (tenantId, id) =>
+  api.delete(`tenants/${tenantId}/ressources/${id}/`)
+
+// Téléchargement authentifié : le fichier n'est pas servi publiquement.
+export const telechargerRessource = async (tenantId, ressource) => {
+  const response = await api.get(
+    `tenants/${tenantId}/ressources/${ressource.id}/telecharger/`,
+    { responseType: 'blob' }
+  )
+  const url = URL.createObjectURL(response.data)
+  const lien = document.createElement('a')
+  lien.href = url
+  lien.download = ressource.fichier?.split('/').pop() ?? ressource.titre
+  lien.click()
+  URL.revokeObjectURL(url)
+}
 
 // ─── Assignations ─────────────────────────────────────────────────────────────
 
@@ -49,6 +84,14 @@ export const getAssignations = (tenantId, params = {}) =>
 export const creerAssignation = (tenantId, payload) =>
   api
     .post(`tenants/${tenantId}/assignations/`, payload)
+    .then((r) => r.data)
+
+// Plusieurs cibles en une fois, « tout ou rien » :
+// { brief, groupes: [ids], apprenants: [ids] }. En cas de refus, la réponse
+// contient « erreurs » : [{ type, id, message }].
+export const assignerPlusieurs = (tenantId, payload) =>
+  api
+    .post(`tenants/${tenantId}/assignations/multiple/`, payload)
     .then((r) => r.data)
 
 export const supprimerAssignation = (tenantId, id) =>

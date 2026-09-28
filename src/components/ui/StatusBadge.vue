@@ -14,7 +14,7 @@ import { computed } from 'vue'
  *   - 'organisme': Actif / Suspendu   → Tenant.statut
  *   - 'membre'   : Actif / Suspendu   → MembreTenant.actif (accès à l'organisme)
  *   - 'promotion': Ouverte / Clôturée → Promotion.actif
- *   - 'brief'   : statuts BROUILLON / PUBLIE / TERMINE / ARCHIVE
+ *   - 'brief'   : statuts BROUILLON / PUBLIE / ARCHIVE
  *   - 'livrable': statuts SOUMIS / INVALIDE / RETENU
  */
 const props = defineProps({
@@ -56,7 +56,6 @@ const config = computed(() => {
     const map = {
       BROUILLON: { label: 'Brouillon', classes: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200' },
       PUBLIE:    { label: 'Publié',    classes: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200' },
-      TERMINE:   { label: 'Terminé',  classes: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
       ARCHIVE:   { label: 'Archivé',  classes: 'bg-orange-50 text-orange-600 ring-1 ring-orange-200' },
     }
     return map[props.value] ?? { label: props.value, classes: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200' }

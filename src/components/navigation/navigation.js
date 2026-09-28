@@ -26,6 +26,21 @@ export const navigationByRole = {
       to: '/niveaux',
     },
     {
+      label: 'Briefs',
+      icon: 'fa-solid fa-clipboard',
+      to: '/briefs',
+    },
+    {
+      label: 'Ressources',
+      icon: 'fa-solid fa-folder-open',
+      to: '/ressources',
+    },
+    {
+      label: 'Catégories',
+      icon: 'fa-solid fa-tags',
+      to: '/categories',
+    },
+    {
       label: 'Apprenants',
       icon: 'fa-solid fa-user-graduate',
       to: '/apprenants',
@@ -62,6 +77,11 @@ export const navigationByRole = {
       label: 'Briefs',
       icon: 'fa-solid fa-clipboard',
       to: '/briefs',
+    },
+    {
+      label: 'Ressources',
+      icon: 'fa-solid fa-folder-open',
+      to: '/ressources',
     },
   ],
 

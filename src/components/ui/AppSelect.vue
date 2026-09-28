@@ -3,6 +3,8 @@
  * AppSelect — select stylisé pour les formulaires.
  *
  * options : [{ value, label }]
+ * placeholderSelectable : le placeholder redevient un choix (champ facultatif,
+ *   ex. « Aucune ») au lieu d'une simple invite désactivée.
  */
 defineProps({
   modelValue: {
@@ -21,6 +23,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  placeholderSelectable: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 defineEmits(['update:modelValue'])
@@ -34,7 +40,7 @@ defineEmits(['update:modelValue'])
       @change="$emit('update:modelValue', $event.target.value)"
       class="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-9 font-['Plus_Jakarta_Sans'] text-sm text-zinc-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 disabled:bg-slate-50 disabled:text-zinc-400 disabled:cursor-not-allowed transition"
     >
-      <option value="" disabled>{{ placeholder }}</option>
+      <option value="" :disabled="!placeholderSelectable">{{ placeholder }}</option>
       <option
         v-for="opt in options"
         :key="opt.value"

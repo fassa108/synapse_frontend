@@ -1,1 +1,17 @@
 @import "tailwindcss";
+/* ─── Texte riche (briefs) : éditeur Tiptap et affichage ─────────────────── */
+.texte-riche {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #3f3f46;
+}
+.texte-riche :where(p, ul, ol, blockquote, h2, h3) + :where(p, ul, ol, blockquote, h2, h3) { margin-top: 0.6em; }
+.texte-riche h2 { font-family: 'Sora', sans-serif; font-size: 1rem; font-weight: 600; color: #111827; }
+.texte-riche h3 { font-family: 'Sora', sans-serif; font-size: 0.9rem; font-weight: 600; color: #111827; }
+.texte-riche strong, .texte-riche b { font-weight: 600; color: #18181b; }
+.texte-riche ul { list-style: disc; padding-left: 1.4em; }
+.texte-riche ol { list-style: decimal; padding-left: 1.4em; }
+.texte-riche li > p { margin: 0; }
+.texte-riche blockquote { border-left: 3px solid #c7d2fe; padding-left: 0.9em; color: #52525b; font-style: italic; }
+.texte-riche a { color: #4f46e5; text-decoration: underline; }

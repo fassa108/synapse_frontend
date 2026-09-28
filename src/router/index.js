@@ -201,8 +201,38 @@ const routes = [
   {
     path: '/briefs',
     name: 'briefs',
-    component: () => import('../pages/formateur/DashboardFormateurPage.vue'),
+    component: () => import('../pages/shared/BriefsPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/briefs/creer',
+    name: 'brief-creer',
+    component: () => import('../pages/formateur/BriefFormPage.vue'),
     meta: { requiresAuth: true, roles: ['FORMATEUR'] },
+  },
+  {
+    path: '/briefs/:id',
+    name: 'brief-detail',
+    component: () => import('../pages/shared/BriefDetailPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/briefs/:id/modifier',
+    name: 'brief-modifier',
+    component: () => import('../pages/formateur/BriefFormPage.vue'),
+    meta: { requiresAuth: true, roles: ['FORMATEUR'] },
+  },
+  {
+    path: '/categories',
+    name: 'categories',
+    component: () => import('../pages/admin-organisme/CategoriesPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'] },
+  },
+  {
+    path: '/ressources',
+    name: 'ressources',
+    component: () => import('../pages/shared/RessourcesPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
   },
 
   // ─── Apprenant ─────────────────────────────────────────────────────────────
@@ -221,7 +251,13 @@ const routes = [
   {
     path: '/activites',
     name: 'activites',
-    component: () => import('../pages/apprenant/DashboardApprenantPage.vue'),
+    component: () => import('../pages/apprenant/MesActivitesPage.vue'),
+    meta: { requiresAuth: true, roles: ['APPRENANT'] },
+  },
+  {
+    path: '/activites/:id',
+    name: 'activite-detail',
+    component: () => import('../pages/apprenant/ActiviteDetailPage.vue'),
     meta: { requiresAuth: true, roles: ['APPRENANT'] },
   },
   {
