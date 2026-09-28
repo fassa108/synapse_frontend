@@ -15,6 +15,7 @@ import TextInput from '../../components/ui/TextInput.vue'
 import SearchInput from '../../components/ui/SearchInput.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
+import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue'
 import { useAuthStore } from '../../stores/auth'
 import {
   getRessources,
@@ -68,18 +69,22 @@ const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('fr-FR') : '
 
 const premier = (v) => (Array.isArray(v) ? v[0] : v)
 
-// ─── Téléchargement ───────────────────────────────────────────────────────────
-const ouvrir = async (r) => {
-  error.value = ''
+// ─── Consultation ─────────────────────────────────────────────────────────────
+// Fichier : consultation dans la plateforme ; lien : nouvel onglet
+const ressourceConsultee = ref(null)
+const fichierRessource = computed(() =>
+  ressourceConsultee.value && {
+    chemin: `ressources/${ressourceConsultee.value.id}`,
+    nom: `${ressourceConsultee.value.titre}.${ressourceConsultee.value.extension}`,
+    extension: ressourceConsultee.value.extension,
+  }
+)
+const ouvrir = (r) => {
   if (r.url) {
     window.open(r.url, '_blank', 'noopener')
     return
   }
-  try {
-    await telechargerRessource(tenantId, r)
-  } catch {
-    error.value = 'Impossible de télécharger ce fichier.'
-  }
+  ressourceConsultee.value = r
 }
 
 // ─── Ajout / modification ─────────────────────────────────────────────────────
@@ -210,7 +215,7 @@ const supprimer = async () => {
             <button type="button" class="text-left" @click="ouvrir(row)">
               <span class="font-semibold text-indigo-600 hover:underline">{{ row.titre }}</span>
               <p class="mt-0.5 line-clamp-1 text-xs text-zinc-400">
-                {{ row.url ?? row.fichier?.split('/').pop() }}
+                {{ row.url ?? `Fichier ${row.extension.toUpperCase()}` }}
               </p>
             </button>
           </template>
@@ -321,5 +326,11 @@ const supprimer = async () => {
         </div>
       </div>
     </Teleport>
+
+    <VisionneuseFichier
+      :fichier="fichierRessource"
+      :telecharger="() => telechargerRessource(tenantId, ressourceConsultee)"
+      @fermer="ressourceConsultee = null"
+    />
   </AppLayout>
 </template>

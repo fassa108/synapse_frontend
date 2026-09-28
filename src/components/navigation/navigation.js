@@ -31,6 +31,11 @@ export const navigationByRole = {
       to: '/briefs',
     },
     {
+      label: 'Livrables',
+      icon: 'fa-solid fa-inbox',
+      to: '/suivi-livrables',
+    },
+    {
       label: 'Ressources',
       icon: 'fa-solid fa-folder-open',
       to: '/ressources',
@@ -77,6 +82,11 @@ export const navigationByRole = {
       label: 'Briefs',
       icon: 'fa-solid fa-clipboard',
       to: '/briefs',
+    },
+    {
+      label: 'Livrables',
+      icon: 'fa-solid fa-inbox',
+      to: '/suivi-livrables',
     },
     {
       label: 'Ressources',

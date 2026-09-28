@@ -1,8 +1,8 @@
 <script setup>
 /**
  * ActiviteDetailPage — Apprenant : contenu d'un brief, compétences
- * visées (avec ce qui est attendu au niveau visé), ressources.
- * Le dépôt de livrable sera ajouté avec l'étape « Livrables ».
+ * visées (avec ce qui est attendu au niveau visé), ressources ; dépôt et
+ * historique de ses dépôts ; travaux des pairs une fois qu'il a déposé.
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -12,9 +12,19 @@ import AppButton from '../../components/ui/AppButton.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import TexteRiche from '../../components/texte-riche/TexteRiche.vue'
+import DepotCarte from '../../components/livrables/DepotCarte.vue'
+import FormulaireDepot from '../../components/livrables/FormulaireDepot.vue'
+import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
-import { getBrief, getRessources, telechargerRessource, getAssignations, getCategories } from '../../services/activites'
+import {
+  getBrief,
+  getRessources,
+  telechargerRessource,
+  getAssignations,
+  getCategories,
+  getLivrables,
+} from '../../services/activites'
 import { getModule, getCompetences, getCompetenceNiveaux, getNiveaux } from '../../services/pedagogie'
 
 const route     = useRoute()
@@ -31,8 +41,14 @@ const niveaux      = ref([])
 const ressources   = ref([])
 const assignations = ref([])
 const categorie    = ref(null)
+const livrables    = ref([])
 const loading      = ref(true)
 const error        = ref('')
+const depotSucces  = ref('')
+
+const chargerLivrables = async () => {
+  livrables.value = await getLivrables(tenantId, { brief: briefId })
+}
 
 onMounted(async () => {
   try {
@@ -45,6 +61,7 @@ onMounted(async () => {
       getRessources(tenantId),
       getAssignations(tenantId, { brief: briefId }),
       getCategories(tenantId),
+      chargerLivrables(),
     ])
     categorie.value = cats.find((c) => c.id === brief.value.categorie) ?? null
     module_.value = mod
@@ -61,6 +78,32 @@ onMounted(async () => {
 })
 
 const estAssigne = computed(() => assignations.value.length > 0)
+// Un apprenant n'est assigné qu'une fois à un brief (directement ou via un groupe)
+const monAssignation = computed(() => assignations.value[0] ?? null)
+
+const mesDepots = computed(() =>
+  livrables.value.filter((l) => l.assignation === monAssignation.value?.id)
+)
+// Renvoyés par l'API seulement après son propre dépôt : dernier dépôt de chacun
+const depotsDesPairs = computed(() =>
+  livrables.value.filter((l) => l.assignation !== monAssignation.value?.id)
+)
+
+// État des dépôts pour ce brief
+const maintenant = new Date()
+const etatDepot = computed(() => {
+  if (!brief.value) return null
+  if (brief.value.statut === 'ARCHIVE') return { ouvert: false, message: 'Ce brief est archivé : les dépôts sont fermés.' }
+  if (new Date(brief.value.date_debut) > maintenant) {
+    return { ouvert: false, message: `Les dépôts ouvrent le ${formatDate(brief.value.date_debut)}.` }
+  }
+  return { ouvert: true, enRetard: new Date(brief.value.date_limite) < maintenant }
+})
+
+const apresDepot = async () => {
+  await chargerLivrables()
+  depotSucces.value = 'Votre dépôt a bien été enregistré.'
+}
 
 const competencesVisees = computed(() =>
   (brief.value?.competence_niveaux ?? [])
@@ -73,16 +116,21 @@ const competencesVisees = computed(() =>
     }))
 )
 
-const ouvrirRessource = async (r) => {
+// Fichier : consultation dans la plateforme ; lien : nouvel onglet
+const ressourceConsultee = ref(null)
+const fichierRessource = computed(() =>
+  ressourceConsultee.value && {
+    chemin: `ressources/${ressourceConsultee.value.id}`,
+    nom: `${ressourceConsultee.value.titre}.${ressourceConsultee.value.extension}`,
+    extension: ressourceConsultee.value.extension,
+  }
+)
+const ouvrirRessource = (r) => {
   if (r.url) {
     window.open(r.url, '_blank', 'noopener')
     return
   }
-  try {
-    await telechargerRessource(tenantId, r)
-  } catch {
-    error.value = 'Impossible de télécharger ce fichier.'
-  }
+  ressourceConsultee.value = r
 }
 
 const formatDate = (iso) =>
@@ -145,6 +193,44 @@ const formatDate = (iso) =>
                 </li>
               </ul>
             </div>
+
+            <!-- Mes dépôts -->
+            <div v-if="estAssigne" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 class="mb-4 font-['Sora'] text-base font-semibold text-gray-900">Mes dépôts ({{ mesDepots.length }})</h2>
+              <InfoBanner v-if="depotSucces" variant="success" :message="depotSucces" class="mb-4" />
+
+              <InfoBanner v-if="!etatDepot.ouvert" variant="info" :message="etatDepot.message" class="mb-4" />
+              <div v-else class="mb-6 rounded-xl border border-indigo-100 bg-indigo-50/30 p-4">
+                <p class="mb-3 font-['Plus_Jakarta_Sans'] text-sm font-semibold text-gray-900">
+                  {{ mesDepots.length ? 'Nouveau dépôt' : 'Déposer mon travail' }}
+                </p>
+                <FormulaireDepot :assignation="monAssignation.id" :en-retard="etatDepot.enRetard" @depose="apresDepot" />
+              </div>
+
+              <p v-if="mesDepots.length === 0" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
+                Aucun dépôt pour le moment.
+              </p>
+              <div class="flex flex-col gap-3">
+                <DepotCarte v-for="d in mesDepots" :key="d.id" :depot="d" />
+              </div>
+            </div>
+
+            <!-- Travaux des pairs : visibles après son propre dépôt -->
+            <div v-if="estAssigne" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 class="mb-1 font-['Sora'] text-base font-semibold text-gray-900">Travaux de la promotion</h2>
+              <p v-if="mesDepots.length === 0" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
+                Les travaux des autres apprenants seront visibles après votre premier dépôt.
+              </p>
+              <template v-else>
+                <p class="mb-4 font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Dernier dépôt de chacun.</p>
+                <p v-if="depotsDesPairs.length === 0" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
+                  Personne d'autre n'a encore déposé.
+                </p>
+                <div class="flex flex-col gap-3">
+                  <DepotCarte v-for="d in depotsDesPairs" :key="d.id" :depot="d" afficher-cible />
+                </div>
+              </template>
+            </div>
           </div>
 
           <div class="flex flex-col gap-6">
@@ -165,7 +251,7 @@ const formatDate = (iso) =>
               <ul class="flex flex-col gap-2">
                 <li v-for="r in ressources" :key="r.id">
                   <button type="button" class="flex items-center gap-2 text-left font-['Plus_Jakarta_Sans'] text-sm text-indigo-600 hover:underline" @click="ouvrirRessource(r)">
-                    <i :class="r.url ? 'fa-solid fa-link' : 'fa-solid fa-file-arrow-down'" class="text-xs"></i>
+                    <i :class="r.url ? 'fa-solid fa-link' : 'fa-solid fa-eye'" class="text-xs"></i>
                     {{ r.titre }}
                   </button>
                 </li>
@@ -175,5 +261,11 @@ const formatDate = (iso) =>
         </div>
       </template>
     </div>
+
+    <VisionneuseFichier
+      :fichier="fichierRessource"
+      :telecharger="() => telechargerRessource(tenantId, ressourceConsultee)"
+      @fermer="ressourceConsultee = null"
+    />
   </AppLayout>
 </template>

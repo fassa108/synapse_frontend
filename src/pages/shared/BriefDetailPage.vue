@@ -4,6 +4,8 @@
  *
  * - Formateur (promotion ouverte) : publier / archiver, modifier et supprimer
  *   tant qu'il n'y a pas de livrable, assigner à un apprenant ou un groupe.
+ * - Suivi des rendus : pour chaque assignation, Non rendu / Rendu / Rendu en
+ *   retard, nombre de dépôts, dernier dépôt, et historique au clic.
  * - Admin Organisme, ou promotion clôturée : consultation seule.
  */
 import { ref, computed, onMounted } from 'vue'
@@ -15,6 +17,8 @@ import SearchInput from '../../components/ui/SearchInput.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import TexteRiche from '../../components/texte-riche/TexteRiche.vue'
+import DepotCarte from '../../components/livrables/DepotCarte.vue'
+import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
 import {
@@ -27,6 +31,7 @@ import {
   getAssignations,
   assignerPlusieurs,
   supprimerAssignation,
+  getLivrables,
 } from '../../services/activites'
 import {
   getPromotion,
@@ -55,6 +60,7 @@ const categorie    = ref(null)
 const assignations = ref([])
 const inscriptions = ref([])
 const groupes      = ref([])
+const livrables    = ref([])
 const loading      = ref(true)
 const error        = ref('')
 const pageSuccess  = ref('')
@@ -77,6 +83,7 @@ onMounted(async () => {
       getInscriptions(tenantId, brief.value.promotion, { actif: 'true' }),
       getGroupes(tenantId, { promotion: brief.value.promotion }),
       getCategories(tenantId),
+      getLivrables(tenantId, { brief: briefId }).then((l) => { livrables.value = l }),
     ])
     categorie.value = cats.find((c) => c.id === brief.value.categorie) ?? null
     promotion.value = promo
@@ -234,6 +241,36 @@ const assigner = async () => {
   }
 }
 
+// ─── Suivi des rendus ─────────────────────────────────────────────────────────
+// Rendu : au moins un dépôt avant la date limite ; Rendu en retard : tous les
+// dépôts après la date limite ; Non rendu : aucun dépôt.
+const depotsDe = (assignationId) => livrables.value.filter((l) => l.assignation === assignationId)
+
+const suivi = (assignationId) => {
+  const depots = depotsDe(assignationId)
+  if (!depots.length) return { libelle: 'Non rendu', classes: 'bg-zinc-100 text-zinc-500 ring-zinc-200', nb: 0 }
+  const dernier = depots.reduce((a, b) => (new Date(a.date_depot) > new Date(b.date_depot) ? a : b))
+  const aTemps = depots.some((d) => !d.en_retard)
+  return {
+    libelle: aTemps ? 'Rendu' : 'Rendu en retard',
+    classes: aTemps ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200',
+    nb: depots.length,
+    dernier: dernier.date_depot,
+  }
+}
+
+const resumeRendus = computed(() => {
+  const rendus = assignations.value.filter((a) => depotsDe(a.id).length).length
+  return `${rendus} / ${assignations.value.length} rendu${rendus > 1 ? 's' : ''}`
+})
+
+const ouvertes = ref(new Set())
+const basculerHistorique = (id) => {
+  const s = new Set(ouvertes.value)
+  s.has(id) ? s.delete(id) : s.add(id)
+  ouvertes.value = s
+}
+
 // ─── Confirmation (retrait d'assignation, suppression du brief) ─────────────
 const confirmation        = ref(null) // { titre, message, libelle, executer }
 const confirmationLoading = ref(false)
@@ -281,16 +318,21 @@ const demanderSuppression = () =>
   })
 
 // ─── Ressources ───────────────────────────────────────────────────────────────
-const ouvrirRessource = async (r) => {
+// Fichier : consultation dans la plateforme ; lien : nouvel onglet
+const ressourceConsultee = ref(null)
+const fichierRessource = computed(() =>
+  ressourceConsultee.value && {
+    chemin: `ressources/${ressourceConsultee.value.id}`,
+    nom: `${ressourceConsultee.value.titre}.${ressourceConsultee.value.extension}`,
+    extension: ressourceConsultee.value.extension,
+  }
+)
+const ouvrirRessource = (r) => {
   if (r.url) {
     window.open(r.url, '_blank', 'noopener')
     return
   }
-  try {
-    await telechargerRessource(tenantId, r)
-  } catch {
-    actionError.value = 'Impossible de télécharger ce fichier.'
-  }
+  ressourceConsultee.value = r
 }
 
 const formatDate = (iso) =>
@@ -372,9 +414,17 @@ const formatDate = (iso) =>
 
             <!-- Assignations -->
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 class="mb-4 font-['Sora'] text-base font-semibold text-gray-900">
-                Assignations ({{ assignations.length }})
-              </h2>
+              <div class="mb-4 flex items-baseline justify-between gap-3">
+                <h2 class="font-['Sora'] text-base font-semibold text-gray-900">
+                  Assignations et rendus ({{ assignations.length }})
+                </h2>
+                <div v-if="assignations.length" class="flex items-baseline gap-3">
+                  <span class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">{{ resumeRendus }}</span>
+                  <RouterLink :to="`/suivi-livrables?brief=${brief.id}`" class="font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline">
+                    Voir les livrables
+                  </RouterLink>
+                </div>
+              </div>
 
               <div v-if="peutGerer && brief.statut !== 'ARCHIVE'" class="mb-5 flex flex-col gap-3 rounded-xl border border-slate-200 p-4">
                 <div class="flex flex-wrap items-center gap-3">
@@ -428,17 +478,36 @@ const formatDate = (iso) =>
                 Ce brief n'est encore assigné à personne : seuls les apprenants assignés pourront déposer.
               </p>
               <ul class="flex flex-col divide-y divide-slate-100">
-                <li v-for="a in assignations" :key="a.id" class="flex items-center gap-3 py-2.5">
-                  <i :class="a.groupe ? 'fa-solid fa-user-group' : 'fa-solid fa-user'" class="w-4 text-center text-xs text-zinc-400"></i>
-                  <span class="flex-1 font-['Plus_Jakarta_Sans'] text-sm text-gray-900">
-                    <template v-if="a.apprenant">{{ nomApprenant(a.apprenant) }}</template>
-                    <template v-if="a.apprenant && a.groupe"> · </template>
-                    <template v-if="a.groupe">Groupe {{ nomGroupe(a.groupe) }}</template>
-                  </span>
-                  <button v-if="peutGerer" type="button" class="font-['Plus_Jakarta_Sans'] text-xs text-red-600 hover:underline"
-                          @click="demanderRetrait(a)">
-                    Retirer
-                  </button>
+                <li v-for="a in assignations" :key="a.id" class="py-2.5">
+                  <div class="flex flex-wrap items-center gap-3">
+                    <i :class="a.groupe ? 'fa-solid fa-user-group' : 'fa-solid fa-user'" class="w-4 text-center text-xs text-zinc-400"></i>
+                    <span class="flex-1 font-['Plus_Jakarta_Sans'] text-sm text-gray-900">
+                      <template v-if="a.apprenant">{{ nomApprenant(a.apprenant) }}</template>
+                      <template v-if="a.apprenant && a.groupe"> · </template>
+                      <template v-if="a.groupe">Groupe {{ nomGroupe(a.groupe) }}</template>
+                    </span>
+                    <span class="rounded-full px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold ring-1" :class="suivi(a.id).classes">
+                      {{ suivi(a.id).libelle }}
+                    </span>
+                    <button
+                      v-if="suivi(a.id).nb"
+                      type="button"
+                      class="font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline"
+                      :aria-expanded="ouvertes.has(a.id)"
+                      @click="basculerHistorique(a.id)"
+                    >
+                      {{ suivi(a.id).nb }} dépôt{{ suivi(a.id).nb > 1 ? 's' : '' }} · dernier le {{ formatDate(suivi(a.id).dernier) }}
+                      <i class="fa-solid fa-chevron-down ml-1 text-[10px] transition" :class="{ 'rotate-180': ouvertes.has(a.id) }"></i>
+                    </button>
+                    <!-- Une assignation avec des dépôts ne se retire pas -->
+                    <button v-if="peutGerer && !suivi(a.id).nb" type="button" class="font-['Plus_Jakarta_Sans'] text-xs text-red-600 hover:underline"
+                            @click="demanderRetrait(a)">
+                      Retirer
+                    </button>
+                  </div>
+                  <div v-if="ouvertes.has(a.id)" class="mt-3 flex flex-col gap-2 pl-7">
+                    <DepotCarte v-for="d in depotsDe(a.id)" :key="d.id" :depot="d" :afficher-cible="!!a.groupe" />
+                  </div>
                 </li>
               </ul>
             </div>
@@ -484,7 +553,7 @@ const formatDate = (iso) =>
               <ul class="flex flex-col gap-2">
                 <li v-for="r in ressources" :key="r.id">
                   <button type="button" class="flex items-center gap-2 text-left font-['Plus_Jakarta_Sans'] text-sm text-indigo-600 hover:underline" @click="ouvrirRessource(r)">
-                    <i :class="r.url ? 'fa-solid fa-link' : 'fa-solid fa-file-arrow-down'" class="text-xs"></i>
+                    <i :class="r.url ? 'fa-solid fa-link' : 'fa-solid fa-eye'" class="text-xs"></i>
                     {{ r.titre }}
                   </button>
                 </li>
@@ -514,5 +583,11 @@ const formatDate = (iso) =>
         </div>
       </div>
     </Teleport>
+
+    <VisionneuseFichier
+      :fichier="fichierRessource"
+      :telecharger="() => telechargerRessource(tenantId, ressourceConsultee)"
+      @fermer="ressourceConsultee = null"
+    />
   </AppLayout>
 </template>

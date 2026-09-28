@@ -69,10 +69,13 @@ const totalApprenants = computed(() =>
   Object.values(inscriptionMap.value).reduce((sum, n) => sum + n, 0)
 )
 
-// Livrables soumis (statut SOUMIS = en attente d'évaluation)
-const livrablesAEvaluer = computed(() =>
-  livrables.value.filter((l) => l.statut === 'SOUMIS')
-)
+// Dépôts des 7 derniers jours (l'évaluation viendra avec l'étape « Évaluation »)
+const depotsRecents = computed(() => {
+  const limite = Date.now() - 7 * 24 * 3600 * 1000
+  return livrables.value.filter((l) => new Date(l.date_depot).getTime() >= limite)
+})
+
+const titreBrief = (briefId) => briefs.value.find((b) => b.id === briefId)?.titre ?? '—'
 
 // Trier les promotions actives en premier
 const promotionsTri = computed(() =>
@@ -82,18 +85,18 @@ const promotionsTri = computed(() =>
 // Trier les briefs : publiés en premier, puis par date limite
 const briefsTri = computed(() =>
   [...briefs.value].sort((a, b) => {
-    const ordre = { PUBLIE: 0, BROUILLON: 1, TERMINE: 2, ARCHIVE: 3 }
+    const ordre = { PUBLIE: 0, BROUILLON: 1, ARCHIVE: 2 }
     const diff = (ordre[a.statut] ?? 9) - (ordre[b.statut] ?? 9)
     if (diff !== 0) return diff
     return new Date(a.date_limite) - new Date(b.date_limite)
   })
 )
 
-// Trier les livrables à évaluer par date de dépôt (plus ancien en premier)
-const livrablesTriés = computed(() =>
-  [...livrablesAEvaluer.value].sort(
-    (a, b) => new Date(a.date_depot) - new Date(b.date_depot)
-  )
+// Derniers dépôts, du plus récent au plus ancien
+const derniersDepots = computed(() =>
+  [...livrables.value]
+    .sort((a, b) => new Date(b.date_depot) - new Date(a.date_depot))
+    .slice(0, 8)
 )
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -152,9 +155,9 @@ const isDateDepassee = (iso) => iso && new Date(iso) < new Date()
           icon-color="text-amber-600"
         />
         <StatCard
-          label="À évaluer"
-          :value="loading ? '—' : livrablesAEvaluer.length"
-          icon="fa-solid fa-pen-to-square"
+          label="Dépôts (7 jours)"
+          :value="loading ? '—' : depotsRecents.length"
+          icon="fa-solid fa-inbox"
           icon-background="bg-rose-50"
           icon-color="text-rose-500"
         />
@@ -263,39 +266,44 @@ const isDateDepassee = (iso) => iso && new Date(iso) < new Date()
           </div>
         </section>
 
-        <!-- ── À évaluer ─────────────────────────────────────────────────────── -->
+        <!-- ── Derniers dépôts ───────────────────────────────────────────────── -->
         <section class="mt-8">
-          <h2 class="mb-3 font-['Sora'] text-base font-semibold text-gray-900">
-            Livrables à évaluer
-            <span
-              v-if="livrablesAEvaluer.length > 0"
-              class="ml-2 inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-xs font-semibold text-rose-600"
-            >
-              {{ livrablesAEvaluer.length }}
-            </span>
-          </h2>
+          <div class="mb-3 flex items-baseline justify-between gap-3">
+            <h2 class="font-['Sora'] text-base font-semibold text-gray-900">Derniers dépôts</h2>
+            <RouterLink to="/suivi-livrables" class="font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline">
+              Tout voir
+            </RouterLink>
+          </div>
 
-          <div v-if="livrablesAEvaluer.length === 0" class="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-zinc-400">
-            <i class="fa-solid fa-circle-check mb-2 text-2xl text-emerald-400"></i>
-            <p class="font-['Plus_Jakarta_Sans'] text-sm">Aucun livrable en attente d'évaluation.</p>
+          <div v-if="derniersDepots.length === 0" class="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-zinc-400">
+            <i class="fa-solid fa-inbox mb-2 text-2xl"></i>
+            <p class="font-['Plus_Jakarta_Sans'] text-sm">Aucun dépôt pour le moment.</p>
           </div>
 
           <div v-else class="flex flex-col gap-2">
-            <div
-              v-for="livrable in livrablesTriés"
+            <button
+              v-for="livrable in derniersDepots"
               :key="livrable.id"
-              class="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+              type="button"
+              class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-indigo-200"
+              @click="router.push(`/briefs/${livrable.brief}`)"
             >
               <div class="flex min-w-0 flex-1 flex-col gap-0.5">
                 <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-semibold text-gray-900">
-                  {{ livrable.titre }}
+                  {{ livrable.cible?.type === 'groupe' ? `Groupe ${livrable.cible.nom}` : livrable.deposant_nom }}
+                  <span class="font-normal text-zinc-400">· Dépôt n°{{ livrable.numero }}</span>
                 </p>
-                <p class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
-                  Déposé le {{ formatDateCourte(livrable.date_depot) }}
+                <p class="truncate font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
+                  {{ titreBrief(livrable.brief) }} · {{ formatDateCourte(livrable.date_depot) }}
                 </p>
               </div>
-              <StatusBadge :value="livrable.statut" type="livrable" />
-            </div>
+              <span
+                v-if="livrable.en_retard"
+                class="rounded-full bg-amber-50 px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200"
+              >
+                En retard
+              </span>
+            </button>
           </div>
         </section>
 

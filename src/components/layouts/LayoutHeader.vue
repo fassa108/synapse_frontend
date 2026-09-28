@@ -35,6 +35,7 @@ const routeLabels = {
   groupes:     'Groupes',
   briefs:      'Briefs',
   ressources:  'Ressources',
+  'suivi-livrables': 'Livrables',
   categories:  'Catégories',
   modifier:    'Modifier',
   activites:   'Mes activités',

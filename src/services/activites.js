@@ -69,9 +69,43 @@ export const telechargerRessource = async (tenantId, ressource) => {
   const url = URL.createObjectURL(response.data)
   const lien = document.createElement('a')
   lien.href = url
-  lien.download = ressource.fichier?.split('/').pop() ?? ressource.titre
+  // Le nom sur disque est aléatoire : on propose « titre.extension »
+  lien.download = ressource.extension ? `${ressource.titre}.${ressource.extension}` : ressource.titre
   lien.click()
   URL.revokeObjectURL(url)
+}
+
+// ─── Consultation dans la plateforme ─────────────────────────────────────────
+// chemin : `ressources/<id>` ou `fichiers-livrables/<id>`.
+// Renvoie { pdf: Blob } | { texte: string } | { apercu: 'EN_COURS' | 'ECHEC' | 'INDISPONIBLE', message }.
+// Les fichiers Office sont affichés via leur aperçu PDF, préparé au dépôt.
+
+const lireJson = async (blob) => {
+  try {
+    return JSON.parse(await blob.text())
+  } catch {
+    return {}
+  }
+}
+
+export const consulterFichier = async (tenantId, chemin) => {
+  try {
+    const response = await api.get(`tenants/${tenantId}/${chemin}/consulter/`, { responseType: 'blob' })
+    const type = response.headers['content-type'] ?? ''
+    if (response.status === 202 || type.includes('application/json')) {
+      const d = await lireJson(response.data)
+      return { apercu: d.apercu ?? 'EN_COURS', message: d.detail }
+    }
+    if (type.startsWith('text/plain')) return { texte: await response.data.text() }
+    return { pdf: new Blob([response.data], { type: 'application/pdf' }) }
+  } catch (e) {
+    const data = e.response?.data
+    if (data instanceof Blob) {
+      const d = await lireJson(data)
+      if (d.apercu) return { apercu: d.apercu, message: d.detail }
+    }
+    throw e
+  }
 }
 
 // ─── Assignations ─────────────────────────────────────────────────────────────
@@ -97,31 +131,40 @@ export const assignerPlusieurs = (tenantId, payload) =>
 export const supprimerAssignation = (tenantId, id) =>
   api.delete(`tenants/${tenantId}/assignations/${id}/`)
 
-// ─── Livrables ────────────────────────────────────────────────────────────────
+// ─── Livrables (dépôts) ───────────────────────────────────────────────────────
+// Un dépôt n'est ni modifié ni supprimé : on en dépose un nouveau.
+// Filtres : { brief, assignation }. L'apprenant reçoit ses dépôts et, sur les
+// briefs où il a déposé, le dernier dépôt de chacun de ses pairs.
 
 export const getLivrables = (tenantId, params = {}) =>
   api
     .get(`tenants/${tenantId}/livrables/`, { params })
     .then((r) => r.data)
 
-export const getLivrable = (tenantId, id) =>
-  api.get(`tenants/${tenantId}/livrables/${id}/`).then((r) => r.data)
-
-export const modifierStatutLivrable = (tenantId, id, statut) =>
-  api
-    .patch(`tenants/${tenantId}/livrables/${id}/`, { statut })
-    .then((r) => r.data)
-
-// ─── Fichiers livrables ───────────────────────────────────────────────────────
-
-export const getFichiersLivrable = (tenantId, params = {}) =>
-  api
-    .get(`tenants/${tenantId}/fichiers-livrables/`, { params })
-    .then((r) => r.data)
-
-export const creerFichierLivrable = (tenantId, formData) =>
-  api
-    .post(`tenants/${tenantId}/fichiers-livrables/`, formData, {
+// Dépôt en une fois : assignation, commentaire, fichiers (File[]), liens (string[])
+export const deposer = (tenantId, { assignation, commentaire = '', fichiers = [], liens = [] }) => {
+  const donnees = new FormData()
+  donnees.append('assignation', assignation)
+  donnees.append('commentaire', commentaire)
+  fichiers.forEach((f) => donnees.append('fichiers', f))
+  liens.forEach((l) => donnees.append('liens', l))
+  return api
+    .post(`tenants/${tenantId}/livrables/`, donnees, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     .then((r) => r.data)
+}
+
+// Téléchargement authentifié d'un fichier de dépôt (jamais servi publiquement)
+export const telechargerFichierLivrable = async (tenantId, element) => {
+  const response = await api.get(
+    `tenants/${tenantId}/fichiers-livrables/${element.id}/telecharger/`,
+    { responseType: 'blob' }
+  )
+  const url = URL.createObjectURL(response.data)
+  const lien = document.createElement('a')
+  lien.href = url
+  lien.download = element.nom
+  lien.click()
+  URL.revokeObjectURL(url)
+}

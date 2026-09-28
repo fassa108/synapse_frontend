@@ -223,6 +223,12 @@ const routes = [
     meta: { requiresAuth: true, roles: ['FORMATEUR'] },
   },
   {
+    path: '/suivi-livrables',
+    name: 'suivi-livrables',
+    component: () => import('../pages/shared/LivrablesPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
     path: '/categories',
     name: 'categories',
     component: () => import('../pages/admin-organisme/CategoriesPage.vue'),
@@ -263,7 +269,7 @@ const routes = [
   {
     path: '/livrables',
     name: 'livrables',
-    component: () => import('../pages/apprenant/DashboardApprenantPage.vue'),
+    component: () => import('../pages/apprenant/MesLivrablesPage.vue'),
     meta: { requiresAuth: true, roles: ['APPRENANT'] },
   },
 

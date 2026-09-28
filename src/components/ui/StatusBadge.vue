@@ -6,7 +6,7 @@ import { computed } from 'vue'
  *
  * Props :
  *   - value  : valeur brute (true/false, 'PUBLIE', etc.)
- *   - type   : 'boolean' | 'compte' | 'organisme' | 'membre' | 'promotion' | 'brief' | 'livrable'
+ *   - type   : 'boolean' | 'compte' | 'organisme' | 'membre' | 'promotion' | 'brief'
  *
  * Types :
  *   - 'boolean' : Actif / Inactif     → MembreTenant.actif (appartenance à l'organisme)
@@ -15,7 +15,6 @@ import { computed } from 'vue'
  *   - 'membre'   : Actif / Suspendu   → MembreTenant.actif (accès à l'organisme)
  *   - 'promotion': Ouverte / Clôturée → Promotion.actif
  *   - 'brief'   : statuts BROUILLON / PUBLIE / ARCHIVE
- *   - 'livrable': statuts SOUMIS / INVALIDE / RETENU
  */
 const props = defineProps({
   value: {
@@ -57,15 +56,6 @@ const config = computed(() => {
       BROUILLON: { label: 'Brouillon', classes: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200' },
       PUBLIE:    { label: 'Publié',    classes: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200' },
       ARCHIVE:   { label: 'Archivé',  classes: 'bg-orange-50 text-orange-600 ring-1 ring-orange-200' },
-    }
-    return map[props.value] ?? { label: props.value, classes: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200' }
-  }
-
-  if (props.type === 'livrable') {
-    const map = {
-      SOUMIS:   { label: 'Soumis',   classes: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200' },
-      INVALIDE: { label: 'Invalide', classes: 'bg-red-50 text-red-600 ring-1 ring-red-200' },
-      RETENU:   { label: 'Retenu',   classes: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
     }
     return map[props.value] ?? { label: props.value, classes: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200' }
   }
