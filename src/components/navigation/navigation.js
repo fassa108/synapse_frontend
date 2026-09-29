@@ -36,6 +36,11 @@ export const navigationByRole = {
       to: '/suivi-livrables',
     },
     {
+      label: 'Progression',
+      icon: 'fa-solid fa-chart-simple',
+      to: '/progression',
+    },
+    {
       label: 'Ressources',
       icon: 'fa-solid fa-folder-open',
       to: '/ressources',
@@ -89,6 +94,11 @@ export const navigationByRole = {
       to: '/suivi-livrables',
     },
     {
+      label: 'Progression',
+      icon: 'fa-solid fa-chart-simple',
+      to: '/progression',
+    },
+    {
       label: 'Ressources',
       icon: 'fa-solid fa-folder-open',
       to: '/ressources',
@@ -110,6 +120,11 @@ export const navigationByRole = {
       label: 'Mes livrables',
       icon: 'fa-solid fa-file-lines',
       to: '/livrables',
+    },
+    {
+      label: 'Ma progression',
+      icon: 'fa-solid fa-chart-simple',
+      to: '/ma-progression',
     },
     {
       label: 'Ma formation',

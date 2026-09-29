@@ -168,3 +168,23 @@ export const telechargerFichierLivrable = async (tenantId, element) => {
   lien.click()
   URL.revokeObjectURL(url)
 }
+
+// ─── Évaluations ──────────────────────────────────────────────────────────────
+// Une évaluation ne se modifie pas : on en crée une nouvelle (la plus récente fait foi).
+
+export const getEvaluations = (tenantId, params = {}) =>
+  api.get(`tenants/${tenantId}/evaluations/`, { params }).then((r) => r.data)
+
+export const evaluer = (tenantId, payload) =>
+  api.post(`tenants/${tenantId}/evaluations/`, payload).then((r) => r.data)
+
+// ─── Progression ──────────────────────────────────────────────────────────────
+
+export const getProgressionPromotion = (tenantId, promotionId) =>
+  api.get(`tenants/${tenantId}/progression/`, { params: { promotion: promotionId } }).then((r) => r.data)
+
+export const getProgressionApprenant = (tenantId, apprenantId) =>
+  api.get(`tenants/${tenantId}/progression/${apprenantId}/`).then((r) => r.data)
+
+export const getMaProgression = (tenantId) =>
+  api.get(`tenants/${tenantId}/progression/moi/`).then((r) => r.data)

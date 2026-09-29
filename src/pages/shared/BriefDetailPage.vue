@@ -19,6 +19,9 @@ import InfoBanner from '../../components/ui/InfoBanner.vue'
 import TexteRiche from '../../components/texte-riche/TexteRiche.vue'
 import DepotCarte from '../../components/livrables/DepotCarte.vue'
 import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue'
+import EvaluationCarte from '../../components/evaluations/EvaluationCarte.vue'
+import FormulaireEvaluation from '../../components/evaluations/FormulaireEvaluation.vue'
+import { styleEtat, etatRendu, dernieresParAssignation } from '../../utils/evaluation'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
 import {
@@ -32,6 +35,7 @@ import {
   assignerPlusieurs,
   supprimerAssignation,
   getLivrables,
+  getEvaluations,
 } from '../../services/activites'
 import {
   getPromotion,
@@ -61,6 +65,7 @@ const assignations = ref([])
 const inscriptions = ref([])
 const groupes      = ref([])
 const livrables    = ref([])
+const evaluations  = ref([])
 const loading      = ref(true)
 const error        = ref('')
 const pageSuccess  = ref('')
@@ -84,6 +89,7 @@ onMounted(async () => {
       getGroupes(tenantId, { promotion: brief.value.promotion }),
       getCategories(tenantId),
       getLivrables(tenantId, { brief: briefId }).then((l) => { livrables.value = l }),
+      getEvaluations(tenantId, { brief: briefId }).then((e) => { evaluations.value = e }),
     ])
     categorie.value = cats.find((c) => c.id === brief.value.categorie) ?? null
     promotion.value = promo
@@ -263,6 +269,28 @@ const resumeRendus = computed(() => {
   const rendus = assignations.value.filter((a) => depotsDe(a.id).length).length
   return `${rendus} / ${assignations.value.length} rendu${rendus > 1 ? 's' : ''}`
 })
+
+// ─── Évaluation ───────────────────────────────────────────────────────────────
+const dernieres = computed(() => dernieresParAssignation(evaluations.value))
+const etat = (assignationId) =>
+  styleEtat(etatRendu(dernieres.value.get(assignationId), depotsDe(assignationId).length > 0))
+const peutEvaluer = computed(() => brief.value?.peut_evaluer && promotion.value?.actif && brief.value?.statut !== 'BROUILLON')
+
+const aEvaluer = ref(null) // { assignation, nom }
+const ouvrirEvaluation = (a) => {
+  aEvaluer.value = {
+    assignation: a.id,
+    nom: a.groupe ? `Groupe ${nomGroupe(a.groupe)}` : nomApprenant(a.apprenant),
+  }
+}
+const apresEvaluation = (evaluation) => {
+  evaluations.value = [evaluation, ...evaluations.value]
+  aEvaluer.value = null
+  pageSuccess.value = 'Évaluation enregistrée : l’apprenant a été prévenu.'
+  const s = new Set(ouvertes.value)
+  s.add(evaluation.assignation)
+  ouvertes.value = s
+}
 
 const ouvertes = ref(new Set())
 const basculerHistorique = (id) => {
@@ -489,16 +517,32 @@ const formatDate = (iso) =>
                     <span class="rounded-full px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold ring-1" :class="suivi(a.id).classes">
                       {{ suivi(a.id).libelle }}
                     </span>
+                    <span
+                      v-if="dernieres.get(a.id) || suivi(a.id).nb"
+                      class="rounded-full px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold ring-1"
+                      :class="etat(a.id).classes"
+                    >
+                      {{ etat(a.id).libelle }}
+                    </span>
                     <button
-                      v-if="suivi(a.id).nb"
+                      v-if="suivi(a.id).nb || dernieres.get(a.id)"
                       type="button"
                       class="font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline"
                       :aria-expanded="ouvertes.has(a.id)"
                       @click="basculerHistorique(a.id)"
                     >
-                      {{ suivi(a.id).nb }} dépôt{{ suivi(a.id).nb > 1 ? 's' : '' }} · dernier le {{ formatDate(suivi(a.id).dernier) }}
+                      <template v-if="suivi(a.id).nb">{{ suivi(a.id).nb }} dépôt{{ suivi(a.id).nb > 1 ? 's' : '' }} · dernier le {{ formatDate(suivi(a.id).dernier) }}</template>
+                      <template v-else>Voir l'évaluation</template>
                       <i class="fa-solid fa-chevron-down ml-1 text-[10px] transition" :class="{ 'rotate-180': ouvertes.has(a.id) }"></i>
                     </button>
+                    <AppButton
+                      v-if="peutEvaluer"
+                      variant="secondary"
+                      icon="fa-solid fa-clipboard-check"
+                      @click="ouvrirEvaluation(a)"
+                    >
+                      {{ dernieres.get(a.id) ? 'Réévaluer' : 'Évaluer' }}
+                    </AppButton>
                     <!-- Une assignation avec des dépôts ne se retire pas -->
                     <button v-if="peutGerer && !suivi(a.id).nb" type="button" class="font-['Plus_Jakarta_Sans'] text-xs text-red-600 hover:underline"
                             @click="demanderRetrait(a)">
@@ -506,6 +550,7 @@ const formatDate = (iso) =>
                     </button>
                   </div>
                   <div v-if="ouvertes.has(a.id)" class="mt-3 flex flex-col gap-2 pl-7">
+                    <EvaluationCarte v-if="dernieres.get(a.id)" :evaluation="dernieres.get(a.id)" />
                     <DepotCarte v-for="d in depotsDe(a.id)" :key="d.id" :depot="d" :afficher-cible="!!a.groupe" />
                   </div>
                 </li>
@@ -583,6 +628,16 @@ const formatDate = (iso) =>
         </div>
       </div>
     </Teleport>
+
+    <FormulaireEvaluation
+      v-if="brief"
+      :cible="aEvaluer"
+      :brief="brief"
+      :precedente="aEvaluer ? dernieres.get(aEvaluer.assignation) ?? null : null"
+      :sans-depot="aEvaluer ? depotsDe(aEvaluer.assignation).length === 0 : false"
+      @fermer="aEvaluer = null"
+      @evalue="apresEvaluation"
+    />
 
     <VisionneuseFichier
       :fichier="fichierRessource"

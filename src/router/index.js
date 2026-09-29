@@ -229,6 +229,18 @@ const routes = [
     meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
   },
   {
+    path: '/progression',
+    name: 'progression',
+    component: () => import('../pages/shared/ProgressionPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/progression/:id',
+    name: 'progression-apprenant',
+    component: () => import('../pages/shared/ProgressionApprenantPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
     path: '/categories',
     name: 'categories',
     component: () => import('../pages/admin-organisme/CategoriesPage.vue'),
@@ -264,6 +276,12 @@ const routes = [
     path: '/activites/:id',
     name: 'activite-detail',
     component: () => import('../pages/apprenant/ActiviteDetailPage.vue'),
+    meta: { requiresAuth: true, roles: ['APPRENANT'] },
+  },
+  {
+    path: '/ma-progression',
+    name: 'ma-progression',
+    component: () => import('../pages/apprenant/MaProgressionPage.vue'),
     meta: { requiresAuth: true, roles: ['APPRENANT'] },
   },
   {

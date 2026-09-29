@@ -29,7 +29,7 @@ import InfoBanner from '../../components/ui/InfoBanner.vue'
 import EditeurTexteRiche from '../../components/texte-riche/EditeurTexteRiche.vue'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
-import { getBrief, creerBrief, modifierBrief, getRessources, getCategories } from '../../services/activites'
+import { getBrief, getBriefs, creerBrief, modifierBrief, getRessources, getCategories } from '../../services/activites'
 import {
   getPromotions,
   getModules,
@@ -49,6 +49,7 @@ const promotions        = ref([])
 const modules           = ref([])
 const competences       = ref([])
 const competenceNiveaux = ref([])
+const briefsPromotion   = ref([]) // autres briefs de la promotion (compétences déjà visées)
 const niveaux           = ref([])
 const ressources        = ref([])
 const categories        = ref([])
@@ -141,10 +142,20 @@ const promotionChoisie = computed(() =>
 )
 
 const chargerModules = async () => {
-  modules.value = promotionChoisie.value
-    ? await getModules(tenantId, { formation: promotionChoisie.value.formation })
-    : []
+  const p = promotionChoisie.value
+  const [mods, briefs] = p
+    ? await Promise.all([getModules(tenantId, { formation: p.formation }), getBriefs(tenantId, { promotion: p.id })])
+    : [[], []]
+  modules.value = mods
+  briefsPromotion.value = briefs.filter((b) => String(b.id) !== String(briefId))
 }
+
+// Une compétence-niveau n'est visée que par un seul brief de la promotion
+const briefQuiVise = computed(() => {
+  const m = new Map()
+  for (const b of briefsPromotion.value) for (const id of b.competence_niveaux) m.set(id, b.titre)
+  return m
+})
 
 // Changement de promotion (création) : on repart de zéro sur le référentiel
 watch(() => form.promotion, async (nouvelle, ancienne) => {
@@ -402,7 +413,8 @@ const enregistrer = async () => {
             </div>
             <p class="mb-4 font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
               Choisissez, pour chaque compétence travaillée, le niveau visé.
-              Les compétences du module principal sont proposées en premier.
+              Les compétences du module principal sont proposées en premier. Une compétence
+              déjà visée par un autre brief de la promotion ne peut pas l'être à nouveau.
             </p>
             <InfoBanner v-if="erreurs.competence_niveaux" variant="error" :message="erreurs.competence_niveaux" class="mb-3" />
 
@@ -423,18 +435,29 @@ const enregistrer = async () => {
                   <div class="mt-2 flex flex-wrap gap-2">
                     <button
                       v-for="cn in c.niveaux" :key="cn.id" type="button"
-                      :title="cn.description"
-                      class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-['Plus_Jakarta_Sans'] text-xs font-medium transition"
+                      :title="briefQuiVise.has(cn.id) ? `Déjà visée par « ${briefQuiVise.get(cn.id)} »` : cn.description"
+                      class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-['Plus_Jakarta_Sans'] text-xs font-medium transition disabled:cursor-not-allowed"
                       :class="form.competence_niveaux.includes(cn.id)
                         ? 'border-indigo-500 bg-indigo-500 text-white'
-                        : 'border-slate-200 text-zinc-600 hover:border-indigo-300'"
+                        : briefQuiVise.has(cn.id)
+                          ? 'border-dashed border-slate-200 text-zinc-300'
+                          : 'border-slate-200 text-zinc-600 hover:border-indigo-300'"
                       :aria-pressed="form.competence_niveaux.includes(cn.id)"
+                      :disabled="briefQuiVise.has(cn.id) && !form.competence_niveaux.includes(cn.id)"
                       @click="basculerCn(cn.id)"
                     >
                       <i v-if="form.competence_niveaux.includes(cn.id)" class="fa-solid fa-check text-[10px]"></i>
+                      <i v-else-if="briefQuiVise.has(cn.id)" class="fa-solid fa-lock text-[9px]"></i>
                       {{ nomNiveau(cn.niveau) }}
                     </button>
                   </div>
+                  <p
+                    v-for="cn in c.niveaux.filter((x) => briefQuiVise.has(x.id) && !form.competence_niveaux.includes(x.id))"
+                    :key="`v${cn.id}`"
+                    class="mt-2 font-['Plus_Jakarta_Sans'] text-xs text-zinc-400"
+                  >
+                    <i class="fa-solid fa-lock mr-1 text-[9px]"></i>{{ nomNiveau(cn.niveau) }} : déjà visée par « {{ briefQuiVise.get(cn.id) }} »
+                  </p>
                   <p
                     v-for="cn in c.niveaux.filter((x) => form.competence_niveaux.includes(x.id) && x.description)"
                     :key="`d${cn.id}`"

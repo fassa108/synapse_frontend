@@ -15,6 +15,8 @@ import TexteRiche from '../../components/texte-riche/TexteRiche.vue'
 import DepotCarte from '../../components/livrables/DepotCarte.vue'
 import FormulaireDepot from '../../components/livrables/FormulaireDepot.vue'
 import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue'
+import EvaluationCarte from '../../components/evaluations/EvaluationCarte.vue'
+import { styleEtat, etatRendu } from '../../utils/evaluation'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
 import {
@@ -24,6 +26,7 @@ import {
   getAssignations,
   getCategories,
   getLivrables,
+  getEvaluations,
 } from '../../services/activites'
 import { getModule, getCompetences, getCompetenceNiveaux, getNiveaux } from '../../services/pedagogie'
 
@@ -42,6 +45,8 @@ const ressources   = ref([])
 const assignations = ref([])
 const categorie    = ref(null)
 const livrables    = ref([])
+const evaluations  = ref([]) // de la plus récente à la plus ancienne
+const voirAnciennes = ref(false)
 const loading      = ref(true)
 const error        = ref('')
 const depotSucces  = ref('')
@@ -62,6 +67,7 @@ onMounted(async () => {
       getAssignations(tenantId, { brief: briefId }),
       getCategories(tenantId),
       chargerLivrables(),
+      getEvaluations(tenantId, { brief: briefId }).then((e) => { evaluations.value = e }),
     ])
     categorie.value = cats.find((c) => c.id === brief.value.categorie) ?? null
     module_.value = mod
@@ -78,6 +84,10 @@ onMounted(async () => {
 })
 
 const estAssigne = computed(() => assignations.value.length > 0)
+
+// Évaluation de son rendu : la plus récente fait foi
+const derniereEvaluation = computed(() => evaluations.value[0] ?? null)
+const etatEvaluation = computed(() => styleEtat(etatRendu(derniereEvaluation.value, mesDepots.value.length > 0)))
 // Un apprenant n'est assigné qu'une fois à un brief (directement ou via un groupe)
 const monAssignation = computed(() => assignations.value[0] ?? null)
 
@@ -192,6 +202,29 @@ const formatDate = (iso) =>
                   </div>
                 </li>
               </ul>
+            </div>
+
+            <!-- Évaluation -->
+            <div v-if="derniereEvaluation" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div class="mb-4 flex items-center justify-between gap-3">
+                <h2 class="font-['Sora'] text-base font-semibold text-gray-900">Évaluation</h2>
+                <span class="rounded-full px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold ring-1" :class="etatEvaluation.classes">
+                  {{ etatEvaluation.libelle }}
+                </span>
+              </div>
+              <EvaluationCarte :evaluation="derniereEvaluation" />
+              <template v-if="evaluations.length > 1">
+                <button
+                  type="button"
+                  class="mt-3 font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline"
+                  @click="voirAnciennes = !voirAnciennes"
+                >
+                  {{ voirAnciennes ? 'Masquer' : 'Voir' }} les évaluations précédentes ({{ evaluations.length - 1 }})
+                </button>
+                <div v-if="voirAnciennes" class="mt-3 flex flex-col gap-3">
+                  <EvaluationCarte v-for="e in evaluations.slice(1)" :key="e.id" :evaluation="e" ancienne />
+                </div>
+              </template>
             </div>
 
             <!-- Mes dépôts -->
