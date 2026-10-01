@@ -911,7 +911,7 @@ const formatDate = (iso) =>
 
                 <InfoBanner
                   variant="info"
-                  message="L'apprenant doit avoir activé son compte avant de pouvoir être inscrit dans une promotion."
+                  message="Un apprenant peut être inscrit avant d'avoir activé son compte : il accédera à la promotion dès son activation."
                 />
               </template>
 

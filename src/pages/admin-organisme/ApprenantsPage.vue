@@ -174,7 +174,7 @@ const handleInviter = async () => {
     // pas l'envoi d'un email (la tâche Celery d'envoi n'est pas encore
     // implémentée côté backend).
     inviteSuccess.value =
-      'Compte créé avec succès. L\'apprenant pourra être inscrit dans une promotion après activation de son compte.'
+      'Compte créé avec succès. Vous pouvez déjà inscrire l\'apprenant dans une promotion, depuis la page de la promotion.'
 
     // Rafraîchir la liste
     const membres = await getMembres(tenantId)
@@ -406,10 +406,10 @@ const closeModal = () => {
 
               <!-- Note métier : pas de sélection de promotion ici.
                    L'inscription se fait depuis le détail d'une promotion,
-                   une fois le compte activé par l'apprenant. -->
+                   sans attendre l'activation du compte. -->
               <InfoBanner
                 variant="info"
-                message="L'inscription dans une promotion pourra être effectuée depuis la page de la promotion, après activation du compte."
+                message="L'inscription dans une promotion se fait depuis la page de la promotion, sans attendre l'activation du compte."
               />
 
               <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
