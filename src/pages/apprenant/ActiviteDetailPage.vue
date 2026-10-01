@@ -16,6 +16,7 @@ import DepotCarte from '../../components/livrables/DepotCarte.vue'
 import FormulaireDepot from '../../components/livrables/FormulaireDepot.vue'
 import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue'
 import EvaluationCarte from '../../components/evaluations/EvaluationCarte.vue'
+import CommentairesRendu from '../../components/commentaires/CommentairesRendu.vue'
 import { styleEtat, etatRendu } from '../../utils/evaluation'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
@@ -27,6 +28,7 @@ import {
   getCategories,
   getLivrables,
   getEvaluations,
+  getCommentaires,
 } from '../../services/activites'
 import { getModule, getCompetences, getCompetenceNiveaux, getNiveaux } from '../../services/pedagogie'
 
@@ -47,9 +49,15 @@ const categorie    = ref(null)
 const livrables    = ref([])
 const evaluations  = ref([]) // de la plus récente à la plus ancienne
 const voirAnciennes = ref(false)
+const commentaires = ref([])
 const loading      = ref(true)
 const error        = ref('')
 const depotSucces  = ref('')
+
+const chargerCommentaires = async () => {
+  commentaires.value = await getCommentaires(tenantId, { brief: briefId })
+}
+const commentairesDe = (assignationId) => commentaires.value.filter((c) => c.assignation === assignationId)
 
 const chargerLivrables = async () => {
   livrables.value = await getLivrables(tenantId, { brief: briefId })
@@ -68,6 +76,7 @@ onMounted(async () => {
       getCategories(tenantId),
       chargerLivrables(),
       getEvaluations(tenantId, { brief: briefId }).then((e) => { evaluations.value = e }),
+      chargerCommentaires(),
     ])
     categorie.value = cats.find((c) => c.id === brief.value.categorie) ?? null
     module_.value = mod
@@ -86,6 +95,9 @@ onMounted(async () => {
 const estAssigne = computed(() => assignations.value.length > 0)
 
 // Évaluation de son rendu : la plus récente fait foi
+// Commentaires : brief ouvert et après son propre dépôt
+const peutEchanger = computed(() => brief.value?.statut === 'PUBLIE' && mesDepots.value.length > 0)
+
 const derniereEvaluation = computed(() => evaluations.value[0] ?? null)
 const etatEvaluation = computed(() => styleEtat(etatRendu(derniereEvaluation.value, mesDepots.value.length > 0)))
 // Un apprenant n'est assigné qu'une fois à un brief (directement ou via un groupe)
@@ -111,7 +123,7 @@ const etatDepot = computed(() => {
 })
 
 const apresDepot = async () => {
-  await chargerLivrables()
+  await Promise.all([chargerLivrables(), chargerCommentaires()])
   depotSucces.value = 'Votre dépôt a bien été enregistré.'
 }
 
@@ -246,6 +258,15 @@ const formatDate = (iso) =>
               <div class="flex flex-col gap-3">
                 <DepotCarte v-for="d in mesDepots" :key="d.id" :depot="d" />
               </div>
+              <CommentairesRendu
+                v-if="mesDepots.length"
+                class="mt-5 border-t border-slate-100 pt-4"
+                titre="Commentaires reçus"
+                :assignation="monAssignation.id"
+                :commentaires="commentairesDe(monAssignation.id)"
+                :peut-repondre="peutEchanger"
+                @change="chargerCommentaires"
+              />
             </div>
 
             <!-- Travaux des pairs : visibles après son propre dépôt -->
@@ -260,7 +281,17 @@ const formatDate = (iso) =>
                   Personne d'autre n'a encore déposé.
                 </p>
                 <div class="flex flex-col gap-3">
-                  <DepotCarte v-for="d in depotsDesPairs" :key="d.id" :depot="d" afficher-cible />
+                  <div v-for="d in depotsDesPairs" :key="d.id" class="flex flex-col gap-3 rounded-2xl bg-slate-50/60 p-2">
+                    <DepotCarte :depot="d" afficher-cible />
+                    <CommentairesRendu
+                      class="px-2 pb-2"
+                      :assignation="d.assignation"
+                      :commentaires="commentairesDe(d.assignation)"
+                      :peut-commenter="peutEchanger"
+                      :peut-repondre="peutEchanger"
+                      @change="chargerCommentaires"
+                    />
+                  </div>
                 </div>
               </template>
             </div>

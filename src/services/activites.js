@@ -188,3 +188,20 @@ export const getProgressionApprenant = (tenantId, apprenantId) =>
 
 export const getMaProgression = (tenantId) =>
   api.get(`tenants/${tenantId}/progression/moi/`).then((r) => r.data)
+
+// ─── Feedback entre pairs ─────────────────────────────────────────────────────
+
+export const getCommentaires = (tenantId, params = {}) =>
+  api.get(`tenants/${tenantId}/commentaires/`, { params }).then((r) => r.data)
+
+export const commenter = (tenantId, payload) =>
+  api.post(`tenants/${tenantId}/commentaires/`, payload).then((r) => r.data)
+
+export const modifierCommentaire = (tenantId, id, texte) =>
+  api.patch(`tenants/${tenantId}/commentaires/${id}/`, { texte }).then((r) => r.data)
+
+export const supprimerCommentaire = (tenantId, id) =>
+  api.delete(`tenants/${tenantId}/commentaires/${id}/`)
+
+export const masquerCommentaire = (tenantId, id, masque) =>
+  api.post(`tenants/${tenantId}/commentaires/${id}/${masque ? 'masquer' : 'demasquer'}/`).then((r) => r.data)

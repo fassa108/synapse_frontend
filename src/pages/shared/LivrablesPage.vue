@@ -23,9 +23,10 @@ import AppButton from '../../components/ui/AppButton.vue'
 import DepotCarte from '../../components/livrables/DepotCarte.vue'
 import EvaluationCarte from '../../components/evaluations/EvaluationCarte.vue'
 import FormulaireEvaluation from '../../components/evaluations/FormulaireEvaluation.vue'
+import CommentairesRendu from '../../components/commentaires/CommentairesRendu.vue'
 import { styleEtat, etatRendu, dernieresParAssignation, ETATS_OPTIONS } from '../../utils/evaluation'
 import { useAuthStore } from '../../stores/auth'
-import { getLivrables, getBriefs, getEvaluations } from '../../services/activites'
+import { getLivrables, getBriefs, getEvaluations, getCommentaires } from '../../services/activites'
 import { getPromotions } from '../../services/pedagogie'
 
 const route     = useRoute()
@@ -169,6 +170,14 @@ const peutEvaluer = computed(() => {
   return !!b?.peut_evaluer && promotions.value.find((p) => p.id === b.promotion)?.actif !== false
 })
 
+// Commentaires des pairs sur le rendu affiché
+const commentaires = ref([])
+const chargerCommentaires = async () => {
+  if (!selection.value) return
+  commentaires.value = await getCommentaires(tenantId, { assignation: selection.value.assignation })
+}
+watch(selection, (s) => { commentaires.value = []; if (s) chargerCommentaires() })
+
 const aEvaluer = ref(null)
 const ouvrirEvaluation = () => {
   aEvaluer.value = { assignation: selection.value.assignation, nom: nomCible(selection.value) }
@@ -299,6 +308,14 @@ const apresEvaluation = (evaluation) => {
               </div>
               <EvaluationCarte v-if="evaluationSelection" :evaluation="evaluationSelection" />
             </div>
+            <CommentairesRendu
+              class="mb-5 rounded-xl border border-slate-100 p-4"
+              titre="Commentaires des pairs"
+              :assignation="selection.assignation"
+              :commentaires="commentaires"
+              :mode="authStore.role === 'FORMATEUR' ? 'formateur' : 'lecture'"
+              @change="chargerCommentaires"
+            />
             <p class="mb-3 font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {{ historique.length }} dépôt{{ historique.length > 1 ? 's' : '' }}, du plus récent au plus ancien
             </p>

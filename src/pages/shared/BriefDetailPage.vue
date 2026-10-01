@@ -21,6 +21,7 @@ import DepotCarte from '../../components/livrables/DepotCarte.vue'
 import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue'
 import EvaluationCarte from '../../components/evaluations/EvaluationCarte.vue'
 import FormulaireEvaluation from '../../components/evaluations/FormulaireEvaluation.vue'
+import CommentairesRendu from '../../components/commentaires/CommentairesRendu.vue'
 import { styleEtat, etatRendu, dernieresParAssignation } from '../../utils/evaluation'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
@@ -36,6 +37,7 @@ import {
   supprimerAssignation,
   getLivrables,
   getEvaluations,
+  getCommentaires,
 } from '../../services/activites'
 import {
   getPromotion,
@@ -66,6 +68,7 @@ const inscriptions = ref([])
 const groupes      = ref([])
 const livrables    = ref([])
 const evaluations  = ref([])
+const commentaires = ref([])
 const loading      = ref(true)
 const error        = ref('')
 const pageSuccess  = ref('')
@@ -90,6 +93,7 @@ onMounted(async () => {
       getCategories(tenantId),
       getLivrables(tenantId, { brief: briefId }).then((l) => { livrables.value = l }),
       getEvaluations(tenantId, { brief: briefId }).then((e) => { evaluations.value = e }),
+      chargerCommentaires(),
     ])
     categorie.value = cats.find((c) => c.id === brief.value.categorie) ?? null
     promotion.value = promo
@@ -269,6 +273,12 @@ const resumeRendus = computed(() => {
   const rendus = assignations.value.filter((a) => depotsDe(a.id).length).length
   return `${rendus} / ${assignations.value.length} rendu${rendus > 1 ? 's' : ''}`
 })
+
+// ─── Commentaires des pairs ───────────────────────────────────────────────────
+const chargerCommentaires = async () => {
+  commentaires.value = await getCommentaires(tenantId, { brief: briefId })
+}
+const commentairesDe = (assignationId) => commentaires.value.filter((c) => c.assignation === assignationId)
 
 // ─── Évaluation ───────────────────────────────────────────────────────────────
 const dernieres = computed(() => dernieresParAssignation(evaluations.value))
@@ -552,6 +562,15 @@ const formatDate = (iso) =>
                   <div v-if="ouvertes.has(a.id)" class="mt-3 flex flex-col gap-2 pl-7">
                     <EvaluationCarte v-if="dernieres.get(a.id)" :evaluation="dernieres.get(a.id)" />
                     <DepotCarte v-for="d in depotsDe(a.id)" :key="d.id" :depot="d" :afficher-cible="!!a.groupe" />
+                    <CommentairesRendu
+                      v-if="depotsDe(a.id).length"
+                      class="mt-1 rounded-xl border border-slate-100 p-3"
+                      titre="Commentaires des pairs"
+                      :assignation="a.id"
+                      :commentaires="commentairesDe(a.id)"
+                      :mode="estFormateur ? 'formateur' : 'lecture'"
+                      @change="chargerCommentaires"
+                    />
                   </div>
                 </li>
               </ul>
