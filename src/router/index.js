@@ -252,6 +252,18 @@ const routes = [
     component: () => import('../pages/shared/RessourcesPage.vue'),
     meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
   },
+  {
+    path: '/revision',
+    name: 'revision',
+    component: () => import('../pages/shared/RevisionPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
+  {
+    path: '/revision/:id',
+    name: 'support-revision',
+    component: () => import('../pages/shared/SupportRevisionPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR'] },
+  },
 
   // ─── Apprenant ─────────────────────────────────────────────────────────────
   {
@@ -288,6 +300,18 @@ const routes = [
     path: '/livrables',
     name: 'livrables',
     component: () => import('../pages/apprenant/MesLivrablesPage.vue'),
+    meta: { requiresAuth: true, roles: ['APPRENANT'] },
+  },
+  {
+    path: '/mes-revisions',
+    name: 'mes-revisions',
+    component: () => import('../pages/apprenant/MesRevisionsPage.vue'),
+    meta: { requiresAuth: true, roles: ['APPRENANT'] },
+  },
+  {
+    path: '/mes-revisions/:id',
+    name: 'revision-apprenant',
+    component: () => import('../pages/apprenant/RevisionApprenantPage.vue'),
     meta: { requiresAuth: true, roles: ['APPRENANT'] },
   },
 

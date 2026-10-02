@@ -46,6 +46,11 @@ export const navigationByRole = {
       to: '/ressources',
     },
     {
+      label: 'Révision',
+      icon: 'fa-solid fa-brain',
+      to: '/revision',
+    },
+    {
       label: 'Catégories',
       icon: 'fa-solid fa-tags',
       to: '/categories',
@@ -103,6 +108,11 @@ export const navigationByRole = {
       icon: 'fa-solid fa-folder-open',
       to: '/ressources',
     },
+    {
+      label: 'Révision',
+      icon: 'fa-solid fa-brain',
+      to: '/revision',
+    },
   ],
 
   APPRENANT: [
@@ -120,6 +130,11 @@ export const navigationByRole = {
       label: 'Mes livrables',
       icon: 'fa-solid fa-file-lines',
       to: '/livrables',
+    },
+    {
+      label: 'Révisions',
+      icon: 'fa-solid fa-brain',
+      to: '/mes-revisions',
     },
     {
       label: 'Ma progression',

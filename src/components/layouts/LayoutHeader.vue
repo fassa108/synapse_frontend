@@ -43,6 +43,8 @@ const routeLabels = {
   activites:   'Mes activités',
   livrables:   'Mes livrables',
   'ma-formation': 'Ma formation',
+  revision:    'Révision',
+  'mes-revisions': 'Révisions',
   creer:       'Créer',
   formateur:   'Espace Formateur',
   apprenant:   'Espace Apprenant',

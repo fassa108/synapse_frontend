@@ -133,7 +133,7 @@ export const supprimerAssignation = (tenantId, id) =>
 
 // ─── Livrables (dépôts) ───────────────────────────────────────────────────────
 // Un dépôt n'est ni modifié ni supprimé : on en dépose un nouveau.
-// Filtres : { brief, assignation }. L'apprenant reçoit ses dépôts et, sur les
+// Filtres : { brief, assignation, module }. L'apprenant reçoit ses dépôts et, sur les
 // briefs où il a déposé, le dernier dépôt de chacun de ses pairs.
 
 export const getLivrables = (tenantId, params = {}) =>
