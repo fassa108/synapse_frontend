@@ -24,7 +24,13 @@ import {
   supprimerRessource,
   telechargerRessource,
 } from '../../services/activites'
-import { ACCEPT_FICHIERS, verifierFichier, tailleLisible } from '../../utils/fichiers'
+import {
+  ACCEPT_FICHIERS,
+  chargerLimitesFichiers,
+  tailleLisible,
+  tailleMaxMo,
+  verifierFichier,
+} from '../../utils/fichiers'
 
 const authStore = useAuthStore()
 const tenantId  = authStore.tenantCourant?.id
@@ -47,6 +53,8 @@ const columns = [
 const charger = async () => {
   ressources.value = await getRessources(tenantId)
 }
+
+chargerLimitesFichiers()
 
 onMounted(async () => {
   try {
@@ -286,7 +294,7 @@ const supprimer = async () => {
               label="Fichier"
               :required="!edition.id"
               :error="erreurs.fichier"
-              :hint="edition.id && !form.fichier ? 'Laissez vide pour garder le fichier actuel. PDF, DOCX, PPTX ou TXT, 10 Mo maximum.' : 'PDF, DOCX, PPTX ou TXT, 10 Mo maximum.'"
+              :hint="`${edition.id && !form.fichier ? 'Laissez vide pour garder le fichier actuel. ' : ''}PDF, DOCX, PPTX ou TXT, ${tailleMaxMo} Mo maximum.`"
             >
               <input
                 type="file" :accept="ACCEPT_FICHIERS" :disabled="editionLoading" @change="choisirFichier"

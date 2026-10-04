@@ -2,7 +2,7 @@
 /**
  * FormulaireDepot — nouveau dépôt sur une assignation.
  *
- * Fichiers (pdf, docx, pptx, txt, 10 Mo) et/ou liens, au moins un et au plus
+ * Fichiers (pdf, docx, pptx, txt, taille max réglée par le backend) et/ou liens, au moins un et au plus
  * 10 éléments, commentaire facultatif. Envoyé en une fois. Le backend refait
  * tous les contrôles (dont le contenu réel des fichiers).
  *
@@ -14,7 +14,13 @@ import TextInput from '../ui/TextInput.vue'
 import InfoBanner from '../ui/InfoBanner.vue'
 import { useAuthStore } from '../../stores/auth'
 import { deposer } from '../../services/activites'
-import { ACCEPT_FICHIERS, verifierFichier, tailleLisible } from '../../utils/fichiers'
+import {
+  ACCEPT_FICHIERS,
+  chargerLimitesFichiers,
+  tailleLisible,
+  tailleMaxMo,
+  verifierFichier,
+} from '../../utils/fichiers'
 
 const props = defineProps({
   assignation: { type: Number, required: true },
@@ -23,6 +29,8 @@ const props = defineProps({
 const emit = defineEmits(['depose'])
 
 const MAX_ELEMENTS = 10
+
+chargerLimitesFichiers()
 
 const authStore   = useAuthStore()
 const fichiers    = ref([])
@@ -112,7 +120,7 @@ const envoyer = async () => {
         type="file" multiple :accept="ACCEPT_FICHIERS" :disabled="envoi" @change="ajouterFichiers"
         class="block w-full font-['Plus_Jakarta_Sans'] text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
       />
-      <p class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">PDF, DOCX, PPTX ou TXT, 10 Mo maximum par fichier.</p>
+      <p class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">PDF, DOCX, PPTX ou TXT, {{ tailleMaxMo }} Mo maximum par fichier.</p>
     </div>
 
     <!-- Liens -->

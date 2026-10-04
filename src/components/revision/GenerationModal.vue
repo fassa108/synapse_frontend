@@ -13,7 +13,13 @@ import FormField from '../ui/FormField.vue'
 import InfoBanner from '../ui/InfoBanner.vue'
 import { getRessources, getLivrables } from '../../services/activites'
 import { genererSupport } from '../../services/revision'
-import { ACCEPT_FICHIERS, verifierFichier, tailleLisible } from '../../utils/fichiers'
+import {
+  ACCEPT_FICHIERS,
+  chargerLimitesFichiers,
+  tailleLisible,
+  tailleMaxMo,
+  verifierFichier,
+} from '../../utils/fichiers'
 import { NB_SOURCES_MAX, NB_QUESTIONS_MAX, libelleDifficulte, messageErreur } from '../../utils/revision'
 
 const props = defineProps({
@@ -23,6 +29,8 @@ const props = defineProps({
   difficulte: { type: String, default: '' },
 })
 const emit = defineEmits(['fermer', 'genere'])
+
+chargerLimitesFichiers()
 
 const estQuiz = computed(() => props.type === 'QUIZ')
 const titre = computed(() =>
@@ -185,7 +193,7 @@ const generer = async () => {
                 </label>
               </fieldset>
 
-              <FormField label="Ajouter des fichiers" :error="erreurFichiers" hint="PDF, DOCX, PPTX ou TXT, 10 Mo maximum chacun.">
+              <FormField label="Ajouter des fichiers" :error="erreurFichiers" :hint="`PDF, DOCX, PPTX ou TXT, ${tailleMaxMo} Mo maximum chacun.`">
                 <input
                   type="file" multiple :accept="ACCEPT_FICHIERS" :disabled="envoi" @change="ajouterFichiers"
                   class="block w-full font-['Plus_Jakarta_Sans'] text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"

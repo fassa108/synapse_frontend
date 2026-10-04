@@ -42,7 +42,7 @@ onMounted(async () => {
       <!-- En-tête -->
       <div class="mb-6">
         <h1 class="font-['Sora'] text-xl font-semibold text-gray-900">
-          Bonjour, {{ authStore.utilisateur?.prenom }} 👋
+          Bonjour, {{ authStore.utilisateur?.prenom }} 
         </h1>
         <p class="mt-1 font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">
           Vue d'ensemble de

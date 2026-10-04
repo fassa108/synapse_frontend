@@ -344,9 +344,7 @@ const nomNiveau = (niveauId) =>
             >
               <i class="fa-solid fa-bullseye text-2xl"></i>
               <p class="font-['Plus_Jakarta_Sans'] text-sm">Aucune compétence pour ce module.</p>
-              <AppButton v-if="isAdmin" variant="secondary" icon="fa-solid fa-plus" @click="ouvrirCreer">
-                Ajouter la première compétence
-              </AppButton>
+              
             </div>
 
             <div v-else class="flex flex-col gap-3">
