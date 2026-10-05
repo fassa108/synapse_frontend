@@ -1,61 +1,32 @@
 <script setup>
+/**
+ * Tableau de bord formateur : ce qui attend une action (rendus à évaluer,
+ * échéances, apprenants en retard) et où en sont ses promotions.
+ * Toutes les données viennent d'un seul appel (tableau-de-bord/formateur).
+ */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import StatCard from '../../components/dashboard/StatCard.vue'
-import StatusBadge from '../../components/ui/StatusBadge.vue'
+import Panneau from '../../components/dashboard/Panneau.vue'
+import Graphique from '../../components/progression/Graphique.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 import { useAuthStore } from '../../stores/auth'
-import { getPromotions, getInscriptions, getFormations } from '../../services/pedagogie'
-import { getBriefs } from '../../services/activites'
-import { getLivrables } from '../../services/activites'
+import { getTableauDeBord } from '../../services/activites'
+import { depuis, echeanceRelative, joursJusqua } from '../../utils/dates'
 
 const router    = useRouter()
 const authStore = useAuthStore()
 const tenantId  = authStore.tenantCourant?.id
 
-// ─── État ─────────────────────────────────────────────────────────────────────
-const promotions      = ref([])
-const formationNoms   = ref({})  // formationId → nom
-const inscriptionMap  = ref({})  // promotionId → count apprenants actifs
-const briefs          = ref([])
-const promotionNoms   = ref({})  // promotionId → nom
-const livrables       = ref([])
-const loading         = ref(true)
-const error           = ref('')
+const donnees = ref(null)
+const loading = ref(true)
+const error   = ref('')
 
-// ─── Chargement ───────────────────────────────────────────────────────────────
 onMounted(async () => {
   try {
-    // Promotions affectées au formateur (filtrées par le backend)
-    // Briefs des promotions affectées (filtrés par le backend)
-    // Livrables des promotions affectées (filtrés par le backend)
-    const [proms, forms, brifsData, livrablesData] = await Promise.all([
-      getPromotions(tenantId),
-      getFormations(tenantId).catch(() => []),
-      getBriefs(tenantId).catch(() => []),
-      getLivrables(tenantId).catch(() => []),
-    ])
-
-    promotions.value = proms
-    briefs.value     = brifsData
-    livrables.value  = livrablesData
-
-    // Map formation id → nom
-    forms.forEach((f) => { formationNoms.value[f.id] = f.nom })
-
-    // Map promotion id → nom (utile pour afficher la promotion dans les briefs)
-    proms.forEach((p) => { promotionNoms.value[p.id] = p.nom })
-
-    // Compter les apprenants inscrits pour chaque promotion (en parallèle)
-    const counts = await Promise.all(
-      proms.map((p) =>
-        getInscriptions(tenantId, p.id, { actif: 'true' })
-          .then((ins) => [p.id, ins.length])
-          .catch(() => [p.id, 0])
-      )
-    )
-    inscriptionMap.value = Object.fromEntries(counts)
+    donnees.value = await getTableauDeBord(tenantId, 'formateur')
   } catch {
     error.value = 'Impossible de charger le tableau de bord.'
   } finally {
@@ -63,55 +34,59 @@ onMounted(async () => {
   }
 })
 
-// ─── Calculés ─────────────────────────────────────────────────────────────────
+const ind = computed(() => donnees.value?.indicateurs ?? {})
+const kpi = (cle, suffixe = '') => (loading.value || !donnees.value ? '—' : `${ind.value[cle]}${suffixe}`)
 
-const totalApprenants = computed(() =>
-  Object.values(inscriptionMap.value).reduce((sum, n) => sum + n, 0)
-)
-
-// Dépôts des 7 derniers jours (l'évaluation viendra avec l'étape « Évaluation »)
-const depotsRecents = computed(() => {
-  const limite = Date.now() - 7 * 24 * 3600 * 1000
-  return livrables.value.filter((l) => new Date(l.date_depot).getTime() >= limite)
+// Phrase d'accroche : la priorité du moment
+const accroche = computed(() => {
+  if (!donnees.value) return ''
+  const n = ind.value.a_evaluer
+  if (n > 0) return `${n} rendu${n > 1 ? 's attendent' : ' attend'} votre évaluation.`
+  const retards = donnees.value.apprenants_a_suivre.length
+  if (retards > 0) return `Tout est évalué. ${retards} apprenant${retards > 1 ? 's ont' : ' a'} des briefs en retard.`
+  return 'Tout est à jour : aucun rendu en attente.'
 })
 
-const titreBrief = (briefId) => briefs.value.find((b) => b.id === briefId)?.titre ?? '—'
+// ─── Graphique : suivi des briefs (barres empilées) ──────────────────────────
+const ETATS = [
+  { cle: 'VALIDE',     label: 'Validé',     couleur: '#10b981' },
+  { cle: 'NON_VALIDE', label: 'Non validé', couleur: '#f43f5e' },
+  { cle: 'A_EVALUER',  label: 'À évaluer',  couleur: '#f59e0b' },
+  { cle: 'NON_RENDU',  label: 'Non rendu',  couleur: '#e4e4e7' },
+]
 
-// Trier les promotions actives en premier
-const promotionsTri = computed(() =>
-  [...promotions.value].sort((a, b) => (b.actif ? 1 : 0) - (a.actif ? 1 : 0))
-)
-
-// Trier les briefs : publiés en premier, puis par date limite
-const briefsTri = computed(() =>
-  [...briefs.value].sort((a, b) => {
-    const ordre = { PUBLIE: 0, BROUILLON: 1, ARCHIVE: 2 }
-    const diff = (ordre[a.statut] ?? 9) - (ordre[b.statut] ?? 9)
-    if (diff !== 0) return diff
-    return new Date(a.date_limite) - new Date(b.date_limite)
-  })
-)
-
-// Derniers dépôts, du plus récent au plus ancien
-const derniersDepots = computed(() =>
-  [...livrables.value]
-    .sort((a, b) => new Date(b.date_depot) - new Date(a.date_depot))
-    .slice(0, 8)
-)
+const suivi = computed(() => donnees.value?.suivi_briefs ?? [])
+const donneesSuivi = computed(() => ({
+  labels: suivi.value.map((s) => s.titre),
+  datasets: ETATS.map((e) => ({
+    label: e.label,
+    data: suivi.value.map((s) => s[e.cle]),
+    backgroundColor: e.couleur,
+    borderRadius: 4,
+    barThickness: 16,
+  })),
+}))
+const optionsSuivi = {
+  indexAxis: 'y',
+  scales: {
+    x: { stacked: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } },
+    y: { stacked: true, grid: { display: false } },
+  },
+  plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true } } },
+  onClick: (_evt, elements) => {
+    if (elements.length) router.push(`/briefs/${suivi.value[elements[0].index].brief}`)
+  },
+}
+const hauteurSuivi = computed(() => `${Math.max(160, suivi.value.length * 40 + 70)}px`)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const formatDate = (iso) =>
-  iso ? new Date(iso).toLocaleDateString('fr-FR') : '—'
-
-const formatDateCourte = (iso) => {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+const nomCible = (c) => (c.type === 'groupe' ? `Groupe ${c.nom}` : c.nom)
+const couleurEcheance = (iso) => {
+  const jours = joursJusqua(iso)
+  if (new Date(iso) < new Date()) return 'text-rose-600'
+  return jours <= 2 ? 'text-amber-600' : 'text-zinc-500'
 }
-
-const nomFormation = (formationId) => formationNoms.value[formationId] ?? '—'
-const nomPromotion = (promotionId) => promotionNoms.value[promotionId] ?? '—'
-
-const isDateDepassee = (iso) => iso && new Date(iso) < new Date()
+const pourcent = (a, b) => (b ? Math.round((100 * a) / b) : 0)
 </script>
 
 <template>
@@ -125,65 +100,176 @@ const isDateDepassee = (iso) => iso && new Date(iso) < new Date()
         </h1>
         <p class="mt-1 font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">
           <span class="font-semibold text-zinc-700">{{ authStore.tenantCourant?.nom }}</span>
-          — Espace Formateur
+          — {{ accroche || 'Espace Formateur' }}
         </p>
       </div>
 
       <InfoBanner v-if="error" variant="error" :message="error" class="mb-6" />
 
-      <!-- KPI -->
+      <!-- Indicateurs -->
       <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard
-          label="Mes promotions"
-          :value="loading ? '—' : promotions.length"
-          icon="fa-solid fa-users"
+          label="À évaluer"
+          :value="kpi('a_evaluer')"
+          aide="Rendus en attente"
+          icon="fa-solid fa-pen-to-square"
+          icon-background="bg-amber-50"
+          icon-color="text-amber-600"
+          :alerte="ind.a_evaluer > 0"
+          to="/suivi-livrables"
+        />
+        <StatCard
+          label="Dépôts"
+          :value="kpi('depots_7_jours')"
+          aide="Ces 7 derniers jours"
+          icon="fa-solid fa-inbox"
           icon-background="bg-indigo-50"
           icon-color="text-indigo-600"
         />
         <StatCard
-          label="Mes apprenants"
-          :value="loading ? '—' : totalApprenants"
-          icon="fa-solid fa-user-graduate"
+          label="Taux de rendu"
+          :value="kpi('taux_rendu', ' %')"
+          aide="Briefs arrivés à échéance"
+          icon="fa-solid fa-clipboard-check"
           icon-background="bg-violet-50"
           icon-color="text-violet-600"
         />
         <StatCard
-          label="Mes briefs"
-          :value="loading ? '—' : briefs.length"
-          icon="fa-solid fa-clipboard-list"
-          icon-background="bg-amber-50"
-          icon-color="text-amber-600"
-        />
-        <StatCard
-          label="Dépôts (7 jours)"
-          :value="loading ? '—' : depotsRecents.length"
-          icon="fa-solid fa-inbox"
-          icon-background="bg-rose-50"
-          icon-color="text-rose-500"
+          label="Compétences"
+          :value="kpi('competences_pct', ' %')"
+          aide="Validées, en moyenne"
+          icon="fa-solid fa-bullseye"
+          icon-background="bg-emerald-50"
+          icon-color="text-emerald-600"
+          to="/progression"
         />
       </div>
 
-      <!-- Chargement global -->
       <div v-if="loading" class="mt-10 flex justify-center text-zinc-400">
         <i class="fa-solid fa-circle-notch animate-spin text-2xl"></i>
       </div>
 
-      <template v-else>
+      <template v-else-if="donnees">
 
-        <!-- ── Mes promotions ────────────────────────────────────────────────── -->
-        <section class="mt-8">
-          <h2 class="mb-3 font-['Sora'] text-base font-semibold text-gray-900">
-            Mes promotions
-          </h2>
+        <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <!-- À évaluer -->
+          <Panneau
+            class="xl:col-span-2"
+            titre="À évaluer"
+            lien="/suivi-livrables"
+            :vide="donnees.a_evaluer.length === 0"
+            message-vide="Aucun rendu en attente d'évaluation."
+          >
+            <template #badge>
+              <span v-if="ind.a_evaluer" class="ml-2 rounded-full bg-amber-50 px-2 py-0.5 align-middle font-['Plus_Jakarta_Sans'] text-xs font-semibold text-amber-700">
+                {{ ind.a_evaluer }}
+              </span>
+            </template>
+            <ul class="flex flex-col divide-y divide-slate-100">
+              <li v-for="r in donnees.a_evaluer" :key="r.assignation" class="flex items-center justify-between gap-3 py-2.5">
+                <div class="min-w-0">
+                  <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-semibold text-gray-900">
+                    {{ nomCible(r.cible) }}
+                    <span class="font-normal text-zinc-400">· Dépôt n°{{ r.numero }}</span>
+                  </p>
+                  <p class="truncate font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
+                    {{ r.brief_titre }} · déposé {{ depuis(r.date_depot) }}
+                    <span v-if="r.en_retard" class="ml-1 font-semibold text-amber-700">· en retard</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 font-['Plus_Jakarta_Sans'] text-xs font-semibold text-white transition hover:bg-indigo-700"
+                  @click="router.push(`/briefs/${r.brief}`)"
+                >
+                  Évaluer
+                </button>
+              </li>
+            </ul>
+          </Panneau>
 
-          <div v-if="promotions.length === 0" class="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-zinc-400">
+          <!-- Échéances -->
+          <Panneau
+            titre="Échéances"
+            lien="/briefs"
+            :vide="donnees.echeances.length === 0"
+            message-vide="Aucune échéance dans les 14 prochains jours."
+            icone-vide="fa-regular fa-calendar"
+          >
+            <ul class="flex flex-col gap-3">
+              <li v-for="e in donnees.echeances" :key="e.brief">
+                <button type="button" class="w-full text-left" @click="router.push(`/briefs/${e.brief}`)">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">{{ e.titre }}</p>
+                    <span class="shrink-0 font-['Plus_Jakarta_Sans'] text-xs font-semibold" :class="couleurEcheance(e.date_limite)">
+                      {{ echeanceRelative(e.date_limite) }}
+                    </span>
+                  </div>
+                  <div class="mt-1.5 flex items-center gap-2">
+                    <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <div class="h-full rounded-full bg-indigo-500" :style="{ width: `${pourcent(e.rendus, e.attendus)}%` }"></div>
+                    </div>
+                    <span class="shrink-0 font-['Plus_Jakarta_Sans'] text-[11px] text-zinc-500">{{ e.rendus }}/{{ e.attendus }} rendus</span>
+                  </div>
+                </button>
+              </li>
+            </ul>
+          </Panneau>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <!-- Suivi des briefs -->
+          <Panneau
+            class="xl:col-span-2"
+            titre="Suivi des briefs"
+            :vide="suivi.length === 0"
+            message-vide="Aucun brief publié et assigné pour le moment."
+            icone-vide="fa-solid fa-chart-column"
+          >
+            <div :style="{ height: hauteurSuivi }">
+              <Graphique type="bar" :data="donneesSuivi" :options="optionsSuivi" />
+            </div>
+          </Panneau>
+
+          <!-- Apprenants à suivre -->
+          <Panneau
+            titre="Apprenants à suivre"
+            :vide="donnees.apprenants_a_suivre.length === 0"
+            message-vide="Aucun apprenant en retard."
+          >
+            <ul class="flex flex-col gap-3">
+              <li v-for="a in donnees.apprenants_a_suivre" :key="`${a.id}-${a.promotion}`">
+                <button type="button" class="w-full text-left" @click="router.push(`/progression/${a.id}`)">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">{{ a.nom }}</p>
+                    <span class="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold text-rose-600">
+                      {{ a.briefs_non_rendus }} non rendu{{ a.briefs_non_rendus > 1 ? 's' : '' }}
+                    </span>
+                  </div>
+                  <div class="mt-1.5 flex items-center gap-2">
+                    <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <div class="h-full rounded-full bg-emerald-500" :style="{ width: `${a.competences_pct}%` }"></div>
+                    </div>
+                    <span class="shrink-0 font-['Plus_Jakarta_Sans'] text-[11px] text-zinc-500">{{ a.competences_pct }} % compétences</span>
+                  </div>
+                </button>
+              </li>
+            </ul>
+          </Panneau>
+        </div>
+
+        <!-- Mes promotions -->
+        <section class="mt-6">
+          <h2 class="mb-3 font-['Sora'] text-base font-semibold text-gray-900">Mes promotions</h2>
+
+          <div v-if="donnees.promotions.length === 0" class="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-zinc-400">
             <i class="fa-solid fa-users mb-2 text-2xl"></i>
             <p class="font-['Plus_Jakarta_Sans'] text-sm">Aucune promotion affectée.</p>
           </div>
 
           <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <button
-              v-for="promo in promotionsTri"
+              v-for="promo in donnees.promotions"
               :key="promo.id"
               type="button"
               class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-indigo-200 hover:shadow-md focus:outline-none"
@@ -191,118 +277,23 @@ const isDateDepassee = (iso) => iso && new Date(iso) < new Date()
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
-                  <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-semibold text-gray-900">
-                    {{ promo.nom }}
-                  </p>
-                  <p class="mt-0.5 truncate font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
-                    {{ nomFormation(promo.formation) }}
-                  </p>
+                  <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-semibold text-gray-900">{{ promo.nom }}</p>
+                  <p class="mt-0.5 truncate font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">{{ promo.formation }}</p>
                 </div>
                 <StatusBadge :value="promo.actif" type="boolean" />
               </div>
-              <div class="flex items-center gap-1.5 font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
-                <i class="fa-solid fa-user-graduate text-[11px]"></i>
-                <span>
-                  {{ inscriptionMap[promo.id] ?? '—' }}
-                  apprenant{{ (inscriptionMap[promo.id] ?? 0) !== 1 ? 's' : '' }}
-                </span>
+              <div>
+                <div class="mb-1 flex justify-between font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
+                  <span>
+                    <i class="fa-solid fa-user-graduate mr-1 text-[11px]"></i>
+                    {{ promo.nb_apprenants }} apprenant{{ promo.nb_apprenants !== 1 ? 's' : '' }}
+                  </span>
+                  <span>{{ promo.competences_pct }} % compétences</span>
+                </div>
+                <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div class="h-full rounded-full bg-emerald-500" :style="{ width: `${promo.competences_pct}%` }"></div>
+                </div>
               </div>
-            </button>
-          </div>
-        </section>
-
-        <!-- ── Mes briefs ────────────────────────────────────────────────────── -->
-        <section class="mt-8">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="font-['Sora'] text-base font-semibold text-gray-900">
-              Mes briefs
-            </h2>
-          </div>
-
-          <div v-if="briefs.length === 0" class="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-zinc-400">
-            <i class="fa-solid fa-clipboard-list mb-2 text-2xl"></i>
-            <p class="font-['Plus_Jakarta_Sans'] text-sm">Aucun brief pour le moment.</p>
-          </div>
-
-          <div v-else class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table class="w-full border-collapse">
-              <thead>
-                <tr class="border-b border-slate-100 bg-slate-50/60">
-                  <th class="px-4 py-3 text-left font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-500">Titre</th>
-                  <th class="px-4 py-3 text-left font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-500">Promotion</th>
-                  <th class="px-4 py-3 text-left font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-500 hidden sm:table-cell">Date limite</th>
-                  <th class="px-4 py-3 text-left font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-500">Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="brief in briefsTri"
-                  :key="brief.id"
-                  class="group border-b border-slate-100 last:border-0 cursor-pointer transition hover:bg-slate-50/60"
-                  @click="router.push(`/briefs/${brief.id}`)"
-                >
-                  <td class="px-4 py-3">
-                    <span class="font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">
-                      {{ brief.titre }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3 font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">
-                    {{ nomPromotion(brief.promotion) }}
-                  </td>
-                  <td class="px-4 py-3 hidden sm:table-cell">
-                    <span
-                      class="font-['Plus_Jakarta_Sans'] text-sm"
-                      :class="isDateDepassee(brief.date_limite) ? 'text-red-500 font-medium' : 'text-zinc-500'"
-                    >
-                      {{ formatDate(brief.date_limite) }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <StatusBadge :value="brief.statut" type="brief" />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- ── Derniers dépôts ───────────────────────────────────────────────── -->
-        <section class="mt-8">
-          <div class="mb-3 flex items-baseline justify-between gap-3">
-            <h2 class="font-['Sora'] text-base font-semibold text-gray-900">Derniers dépôts</h2>
-            <RouterLink to="/suivi-livrables" class="font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline">
-              Tout voir
-            </RouterLink>
-          </div>
-
-          <div v-if="derniersDepots.length === 0" class="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-zinc-400">
-            <i class="fa-solid fa-inbox mb-2 text-2xl"></i>
-            <p class="font-['Plus_Jakarta_Sans'] text-sm">Aucun dépôt pour le moment.</p>
-          </div>
-
-          <div v-else class="flex flex-col gap-2">
-            <button
-              v-for="livrable in derniersDepots"
-              :key="livrable.id"
-              type="button"
-              class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-indigo-200"
-              @click="router.push(`/briefs/${livrable.brief}`)"
-            >
-              <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-                <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-semibold text-gray-900">
-                  {{ livrable.cible?.type === 'groupe' ? `Groupe ${livrable.cible.nom}` : livrable.deposant_nom }}
-                  <span class="font-normal text-zinc-400">· Dépôt n°{{ livrable.numero }}</span>
-                </p>
-                <p class="truncate font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
-                  {{ titreBrief(livrable.brief) }} · {{ formatDateCourte(livrable.date_depot) }}
-                </p>
-              </div>
-              <span
-                v-if="livrable.en_retard"
-                class="rounded-full bg-amber-50 px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200"
-              >
-                En retard
-              </span>
             </button>
           </div>
         </section>

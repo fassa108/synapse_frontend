@@ -189,6 +189,12 @@ export const getProgressionApprenant = (tenantId, apprenantId) =>
 export const getMaProgression = (tenantId) =>
   api.get(`tenants/${tenantId}/progression/moi/`).then((r) => r.data)
 
+// ─── Tableaux de bord ─────────────────────────────────────────────────────────
+
+// role : 'formateur' | 'admin' | 'apprenant' (une route par rôle, tout en un appel)
+export const getTableauDeBord = (tenantId, role) =>
+  api.get(`tenants/${tenantId}/tableau-de-bord/${role}/`).then((r) => r.data)
+
 // ─── Feedback entre pairs ─────────────────────────────────────────────────────
 
 export const getCommentaires = (tenantId, params = {}) =>

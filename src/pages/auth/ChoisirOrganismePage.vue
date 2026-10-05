@@ -49,11 +49,7 @@ const labelRole = (role) => {
 
       <!-- Logo -->
       <div class="mb-8 flex flex-col items-center gap-3">
-        <div
-          class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500 shadow-sm"
-        >
-          <div class="h-5 w-7 rounded-sm bg-white"></div>
-        </div>
+        <img src="../../assets/logo-eduhub.png" alt="EduHub" class="h-10 w-auto" />
         <div class="text-center">
           <h1
             class="font-['Plus_Jakarta_Sans'] text-2xl font-bold text-gray-900"

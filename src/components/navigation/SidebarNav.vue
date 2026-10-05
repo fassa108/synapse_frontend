@@ -6,6 +6,11 @@ defineProps({
     type: Array,
     required: true,
   },
+  // Sidebar réduite (desktop) : icônes seules, libellé en infobulle
+  reduite: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const route = useRoute()
@@ -22,16 +27,19 @@ const estActif = (to) => route.path === to || route.path.startsWith(`${to}/`)
       :key="item.to"
       :to="item.to"
       custom
-      v-slot="{ navigate }"
+      v-slot="{ href, navigate }"
     >
       <a
+        :href="href"
         @click="navigate"
+        :title="reduite ? item.label : undefined"
         class="flex items-center gap-3 rounded-lg px-3 py-2 font-['Plus_Jakarta_Sans'] text-sm font-medium transition-colors"
-        :class="
+        :class="[
           estActif(item.to)
             ? 'bg-indigo-500 text-white'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-        "
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+          reduite ? 'lg:justify-center lg:px-0' : '',
+        ]"
       >
         <i
           :class="[
@@ -40,7 +48,7 @@ const estActif = (to) => route.path === to || route.path.startsWith(`${to}/`)
             estActif(item.to) ? 'text-white' : 'text-gray-400',
           ]"
         ></i>
-        <span>{{ item.label }}</span>
+        <span :class="reduite ? 'lg:hidden' : ''">{{ item.label }}</span>
       </a>
     </RouterLink>
   </nav>

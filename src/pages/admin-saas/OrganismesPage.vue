@@ -176,7 +176,7 @@ const handleCreer = async () => {
       </PageHeader>
 
       <!-- Indicateurs globaux -->
-      <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6">
         <StatCard
           label="Organismes"
           :value="kpi('nb_organismes')"

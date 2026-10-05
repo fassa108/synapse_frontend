@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useSidebar } from '../../composables/useSidebar'
 
 const props = defineProps({
   prenom: { type: String, default: '' },
@@ -12,6 +13,7 @@ const props = defineProps({
 const route   = useRoute()
 const router  = useRouter()
 const authStore = useAuthStore()
+const { basculer: basculerSidebar } = useSidebar()
 
 // ─── Organisme ────────────────────────────────────────────────────────────────
 const tenantCourant    = computed(() => authStore.tenantCourant)
@@ -88,29 +90,41 @@ const initiales = computed(() => {
 
 <template>
   <header
-    class="flex h-14 shrink-0 items-center justify-between border-b border-slate-200/70 bg-white px-6 shadow-[0px_1px_4px_0px_rgba(0,0,0,0.04)]"
+    class="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white px-4 shadow-[0px_1px_4px_0px_rgba(0,0,0,0.04)] sm:px-6"
   >
-    <!-- Gauche : breadcrumbs -->
-    <nav class="flex items-center gap-1.5" aria-label="Fil d'Ariane">
-      <template v-for="(crumb, i) in breadcrumbs" :key="i">
-        <span
-          class="font-['Plus_Jakarta_Sans'] text-sm leading-5"
-          :class="crumb.last ? 'font-semibold text-gray-900' : 'font-normal text-zinc-400'"
-        >
-          {{ crumb.label }}
-        </span>
-        <span v-if="!crumb.last" class="text-xs text-zinc-300" aria-hidden="true">/</span>
-      </template>
-    </nav>
+    <!-- Gauche : ouverture/fermeture de la sidebar + breadcrumbs -->
+    <div class="flex min-w-0 items-center gap-3">
+      <button
+        type="button"
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-slate-100 hover:text-zinc-700"
+        aria-label="Ouvrir ou fermer le menu"
+        title="Ouvrir ou fermer le menu"
+        @click="basculerSidebar"
+      >
+        <i class="fa-solid fa-bars text-sm"></i>
+      </button>
+
+      <nav class="flex min-w-0 items-center gap-1.5 overflow-hidden" aria-label="Fil d'Ariane">
+        <template v-for="(crumb, i) in breadcrumbs" :key="i">
+          <span
+            class="truncate font-['Plus_Jakarta_Sans'] text-sm leading-5"
+            :class="crumb.last ? 'font-semibold text-gray-900' : 'font-normal text-zinc-400'"
+          >
+            {{ crumb.label }}
+          </span>
+          <span v-if="!crumb.last" class="text-xs text-zinc-300" aria-hidden="true">/</span>
+        </template>
+      </nav>
+    </div>
 
     <!-- Droite -->
-    <div class="flex items-center gap-3">
+    <div class="flex shrink-0 items-center gap-3">
 
       <!-- Organisme actif -->
       <button
         v-if="tenantCourant"
         type="button"
-        class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 transition"
+        class="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 transition md:flex"
         :class="hasMultipleTenants ? 'hover:bg-slate-100 cursor-pointer' : 'cursor-default'"
         :disabled="!hasMultipleTenants"
         @click="handleChangerOrganisme"
@@ -124,7 +138,7 @@ const initiales = computed(() => {
       </button>
 
       <!-- Séparateur -->
-      <div class="h-5 w-px bg-slate-200"></div>
+      <div class="hidden h-5 w-px bg-slate-200 md:block"></div>
 
       <!-- Notifications -->
       <button
@@ -137,7 +151,7 @@ const initiales = computed(() => {
 
       <!-- Utilisateur -->
       <div class="flex items-center gap-2">
-        <div class="flex flex-col items-end">
+        <div class="hidden flex-col items-end sm:flex">
           <span class="font-['Plus_Jakarta_Sans'] text-xs font-semibold leading-4 text-gray-900">
             {{ prenom }} {{ nom }}
           </span>

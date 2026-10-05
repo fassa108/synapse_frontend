@@ -1,4 +1,13 @@
 @import "tailwindcss";
+
+/* Tailwind v4 laisse le curseur par défaut sur les boutons : on rétablit la main */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 /* ─── Texte riche (briefs) : éditeur Tiptap et affichage ─────────────────── */
 .texte-riche {
   font-family: 'Plus Jakarta Sans', sans-serif;

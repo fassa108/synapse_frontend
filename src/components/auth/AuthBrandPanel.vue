@@ -5,13 +5,8 @@
     <!-- Contenu -->
     <div class="relative z-10 flex w-full max-w-[520px] flex-col items-center text-center text-white">
       <!-- Logo -->
-      <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur-[2px]">
-        <div class="text-4xl">✦</div>
-      </div>
-
-      <!-- Nom -->
-      <h1 class="font-['Sora'] text-4xl font-bold leading-10">
-        EduHub
+      <h1>
+        <img src="../../assets/logo-eduhub-blanc.png" alt="EduHub" class="h-16 w-auto" />
       </h1>
 
       <!-- Slogan -->
