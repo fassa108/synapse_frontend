@@ -114,7 +114,7 @@ const initiales = (a) =>
         <InfoBanner v-if="actionError" variant="error" :message="actionError" class="mt-4" />
 
         <!-- Indicateurs -->
-        <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-5">
           <StatCard label="Administrateurs" :value="organisme.indicateurs.nb_administrateurs"
             icon="fa-solid fa-user-shield" icon-background="bg-slate-100" icon-color="text-slate-600" />
           <StatCard label="Formateurs" :value="organisme.indicateurs.nb_formateurs"
