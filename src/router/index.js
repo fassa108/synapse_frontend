@@ -317,15 +317,18 @@ const routes = [
 
 
   // ─── Racine ─────────────────────────────────────────────────────────────────
+  // Page d'accueil publique
   {
     path: '/',
-    redirect: '/login',
+    name: 'accueil',
+    component: () => import('../pages/LandingPage.vue'),
+    meta: { public: true },
   },
 
   // ─── 404 fallback ──────────────────────────────────────────────────────────
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/login',
+    redirect: '/',
   },
 ]
 
