@@ -6,13 +6,11 @@
  * - Liste des organismes (clic → fiche)
  * - Création d'un organisme avec son premier administrateur
  */
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
-import FormField from '../../components/ui/FormField.vue'
-import TextInput from '../../components/ui/TextInput.vue'
 import SearchInput from '../../components/ui/SearchInput.vue'
 import FilterSelect from '../../components/ui/FilterSelect.vue'
 import DataTable from '../../components/ui/DataTable.vue'
@@ -20,8 +18,9 @@ import AppPagination from '../../components/ui/AppPagination.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import StatCard from '../../components/dashboard/StatCard.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
+import OrganismeCreationModal from '../../components/organismes/OrganismeCreationModal.vue'
 import { useTenants } from '../../composables/useTenants'
-import { creerOrganisme, recupererIndicateursGlobaux } from '../../services/tenants'
+import { recupererIndicateursGlobaux } from '../../services/tenants'
 
 const router = useRouter()
 const { organismes, isLoading, errorMessage, chargerOrganismes } = useTenants()
@@ -93,70 +92,15 @@ const formatDate = (iso) =>
 const goDetail = (row) => router.push(`/admin/organismes/${row.id}`)
 
 // ─── Création ─────────────────────────────────────────────────────────────────
-const showCreation   = ref(false)
-const creationLoading = ref(false)
-const creationError  = ref('')
-const erreursChamps  = ref({})
+// Le formulaire est recréé à chaque ouverture : erreurs et champs visités repartent à zéro.
+const showCreation = ref(false)
+const ouvrirCreation = () => { showCreation.value = true }
+const fermerCreation = () => { showCreation.value = false }
 
-const formVide = () => ({
-  nom: '',
-  email: '',
-  telephone: '',
-  adresse: '',
-  site_web: '',
-  admin_email: '',
-  admin_prenom: '',
-  admin_nom: '',
-})
-const form = reactive(formVide())
-
-const ouvrirCreation = () => {
-  Object.assign(form, formVide())
-  creationError.value = ''
-  erreursChamps.value = {}
-  showCreation.value = true
-}
-
-const fermerCreation = () => {
-  if (!creationLoading.value) showCreation.value = false
-}
-
-const premiereErreur = (valeur) => (Array.isArray(valeur) ? valeur[0] : valeur)
-
-const handleCreer = async () => {
-  creationError.value = ''
-  erreursChamps.value = {}
-
-  if (!form.nom.trim() || !form.admin_email.trim()) {
-    creationError.value = "Le nom de l'organisme et l'email de l'administrateur sont obligatoires."
-    return
-  }
-
-  creationLoading.value = true
-
-  try {
-    // Les champs vides ne sont pas envoyés
-    const payload = Object.fromEntries(
-      Object.entries(form).filter(([, v]) => v.trim() !== '')
-    )
-    const organisme = await creerOrganisme(payload)
-
-    showCreation.value = false
-    chargerIndicateurs()
-    router.push(`/admin/organismes/${organisme.id}`)
-  } catch (e) {
-    const data = e.response?.data
-    if (data && typeof data === 'object' && !data.detail) {
-      erreursChamps.value = Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, premiereErreur(v)])
-      )
-      creationError.value = 'Veuillez corriger les champs indiqués.'
-    } else {
-      creationError.value = data?.detail ?? "Une erreur est survenue lors de la création."
-    }
-  } finally {
-    creationLoading.value = false
-  }
+const apresCreation = (organisme) => {
+  showCreation.value = false
+  chargerIndicateurs()
+  router.push(`/admin/organismes/${organisme.id}`)
 }
 </script>
 
@@ -299,96 +243,7 @@ const handleCreer = async () => {
         />
       </div>
 
-      <!-- Modal création -->
-      <div
-        v-if="showCreation"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-        @click.self="fermerCreation"
-      >
-        <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-
-          <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <div>
-              <h2 class="font-['Sora'] text-base font-semibold text-gray-900">
-                Nouvel organisme
-              </h2>
-              <p class="mt-0.5 font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
-                L'administrateur recevra un email pour activer son compte.
-              </p>
-            </div>
-            <button
-              type="button"
-              @click="fermerCreation"
-              class="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-slate-100"
-              aria-label="Fermer"
-            >
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          <form class="flex flex-col gap-5 px-6 py-5" @submit.prevent="handleCreer">
-
-            <InfoBanner v-if="creationError" variant="error" :message="creationError" />
-
-            <div class="flex flex-col gap-4">
-              <h3 class="font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                Organisme
-              </h3>
-              <FormField label="Nom" required :error="erreursChamps.nom">
-                <TextInput v-model="form.nom" placeholder="Ex. : Simplon Dakar" :disabled="creationLoading" />
-              </FormField>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FormField label="Email de contact" :error="erreursChamps.email">
-                  <TextInput v-model="form.email" type="email" :disabled="creationLoading" />
-                </FormField>
-                <FormField label="Téléphone" :error="erreursChamps.telephone">
-                  <TextInput v-model="form.telephone" :disabled="creationLoading" />
-                </FormField>
-              </div>
-              <FormField label="Adresse" :error="erreursChamps.adresse">
-                <TextInput v-model="form.adresse" :disabled="creationLoading" />
-              </FormField>
-              <FormField label="Site web" :error="erreursChamps.site_web">
-                <TextInput v-model="form.site_web" placeholder="https://" :disabled="creationLoading" />
-              </FormField>
-            </div>
-
-            <div class="flex flex-col gap-4 border-t border-slate-100 pt-5">
-              <h3 class="font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                Premier administrateur
-              </h3>
-              <FormField
-                label="Email"
-                required
-                :error="erreursChamps.admin_email"
-                hint="Si un compte existe déjà avec cet email, il devient administrateur de l'organisme."
-              >
-                <TextInput v-model="form.admin_email" type="email" :disabled="creationLoading" />
-              </FormField>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FormField label="Prénom" :error="erreursChamps.admin_prenom">
-                  <TextInput v-model="form.admin_prenom" :disabled="creationLoading" />
-                </FormField>
-                <FormField label="Nom" :error="erreursChamps.admin_nom">
-                  <TextInput v-model="form.admin_nom" :disabled="creationLoading" />
-                </FormField>
-              </div>
-              <p class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
-                Prénom et nom sont obligatoires pour un nouveau compte.
-              </p>
-            </div>
-
-            <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
-              <AppButton variant="secondary" :disabled="creationLoading" @click="fermerCreation">
-                Annuler
-              </AppButton>
-              <AppButton type="submit" :loading="creationLoading">
-                Créer l'organisme
-              </AppButton>
-            </div>
-          </form>
-        </div>
-      </div>
+      <OrganismeCreationModal v-if="showCreation" @fermer="fermerCreation" @cree="apresCreation" />
 
     </div>
   </AppLayout>

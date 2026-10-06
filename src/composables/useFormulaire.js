@@ -1,4 +1,4 @@
-import { reactive, ref } from 'vue'
+import { nextTick, reactive, ref } from 'vue'
 
 /**
  * Validation d'un formulaire au fil de la saisie.
@@ -77,8 +77,9 @@ export const useFormulaire = (regles, { correspondances = {} } = {}) => {
       if (champs.includes(champ)) erreursServeur[champ] = texte
       else generales.push(texte)
     }
+    // Après le rendu : les champs, désactivés pendant l'envoi, doivent être réactivés.
     const premier = champs.find((c) => erreursServeur[c])
-    if (premier) document.querySelector(`[name="${premier}"]`)?.focus()
+    if (premier) nextTick(() => document.querySelector(`[name="${premier}"]`)?.focus())
     return generales.join(' ')
   }
 

@@ -46,6 +46,26 @@ export const erreurTelephone = (valeur) => {
   return ''
 }
 
+/** Email facultatif : vide accepté, sinon il doit être valide. */
+export const erreurEmailFacultatif = (email) => (email.trim() ? erreurEmail(email) : '')
+
+/**
+ * Site web facultatif. « https:// » peut être omis : le backend l'ajoute.
+ * Même règle que le backend : http(s), avec un nom de domaine.
+ */
+export const erreurSiteWeb = (valeur) => {
+  let v = valeur.trim()
+  if (!v) return ''
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) v = `https://${v}`
+  try {
+    const url = new URL(v)
+    if (['http:', 'https:'].includes(url.protocol) && /^[^.\s]+(\.[^.\s]+)+$/.test(url.hostname)) return ''
+  } catch {
+    // adresse illisible
+  }
+  return 'Saisissez une adresse valide, par exemple www.organisme.sn.'
+}
+
 // ─── Mot de passe ─────────────────────────────────────────────────────────────
 // Règles exigées par le backend et vérifiables ici. Le backend refuse aussi
 // les mots de passe trop courants ou trop proches du nom ou de l'email :

@@ -23,6 +23,12 @@ export const changerStatutOrganisme = async (id, statut) => {
   return response.data
 }
 
+// Admin d'organisme : nom, description, email, telephone, adresse, site_web
+export const modifierOrganisme = async (id, champs) => {
+  const response = await api.patch(`tenants/${id}/`, champs)
+  return response.data
+}
+
 // Refusé par le backend si l'organisme n'est pas vide.
 export const supprimerOrganisme = async (id) => {
   await api.delete(`tenants/${id}/`)
