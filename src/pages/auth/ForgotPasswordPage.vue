@@ -44,6 +44,7 @@
           <!-- Formulaire -->
             <form
             @submit.prevent="handleSubmit"
+            novalidate
             class="flex flex-col gap-5"
             >
             <!-- Email -->
@@ -67,23 +68,26 @@
                 <input
                     id="email"
                     v-model="email"
+                    name="email"
                     type="email"
                     placeholder="nom.prenom@eduhub.fr"
                     autocomplete="email"
-                    @input="validateEmail"
+                    @blur="quitter('email')"
+                    @input="modifier('email')"
+                    :aria-invalid="!!erreur('email')"
                     class="h-13 w-full rounded-xl border border-zinc-200 bg-white pl-12 pr-4 font-['Plus_Jakarta_Sans'] text-sm text-zinc-900 outline-none transition-all placeholder:text-zinc-400 hover:border-zinc-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
                     :class="{
-                    'border-red-300 focus:border-red-500 focus:ring-red-500/5': emailError
+                    'border-red-300 focus:border-red-500 focus:ring-red-500/5': erreur('email')
                     }"
                 />
                 </div>
 
                 <p
-                v-if="emailError"
+                v-if="erreur('email')"
                 class="flex items-center gap-1.5 px-1 text-xs font-medium text-red-600"
                 >
                 <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
-                {{ emailError }}
+                {{ erreur('email') }}
                 </p>
 
                 <p
@@ -155,57 +159,35 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AuthBrandPanel from '@/components/auth/AuthBrandPanel.vue'
 import { demanderResetPassword } from '@/services/auth'
+import { useFormulaire } from '@/composables/useFormulaire'
+import { erreurEmail } from '@/utils/validation'
 const router = useRouter()
 
 const email = ref('')
-const emailError = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
 
-const validateEmail = () => {
-  emailError.value = ''
-
-  if (!email.value) {
-    emailError.value = "L'adresse e-mail est requise."
-    return false
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-  if (!emailRegex.test(email.value)) {
-    emailError.value = 'Veuillez saisir une adresse e-mail valide.'
-    return false
-  }
-
-  return true
-}
+const { erreur, quitter, modifier, toutVerifier, erreursDuServeur } = useFormulaire({
+  email: () => erreurEmail(email.value),
+})
 
 const handleSubmit = async () => {
-  validateEmail()
-
-  if (emailError.value) {
-    return
-  }
+  errorMessage.value = ''
+  if (!toutVerifier()) return
 
   isLoading.value = true
-  errorMessage.value = ''
-
   try {
     await demanderResetPassword(email.value.trim())
-
     router.push({
       name: 'forgot-password-confirmation',
-      query: {
-        email: email.value.trim(),
-      },
+      query: { email: email.value.trim() },
     })
   } catch (error) {
-
-  errorMessage.value =
-    error.response?.data?.detail ||
-    error.response?.data?.email?.[0] ||
-    "Une erreur est survenue. Veuillez réessayer."
-} finally {
+    errorMessage.value =
+      erreursDuServeur(error.response?.data) ||
+      (error.response?.status === 429 ? 'Trop de demandes. Réessayez dans une minute.' : '') ||
+      (erreur('email') ? '' : 'Une erreur est survenue. Veuillez réessayer.')
+  } finally {
     isLoading.value = false
   }
 }

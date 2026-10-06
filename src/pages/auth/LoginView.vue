@@ -28,6 +28,7 @@
         <!-- Formulaire -->
         <form
           @submit.prevent="handleLogin"
+          novalidate
           class="flex flex-col gap-6"
         >
 
@@ -44,11 +45,15 @@
               <input
                 id="email"
                 v-model="email"
+                name="email"
                 type="email"
                 placeholder="nom@exemple.fr"
-                @input="validateEmail"
+                @blur="quitter('email')"
+                @input="modifier('email')"
                 autocomplete="email"
-                class="h-[52px] w-full rounded-xl border border-zinc-200 bg-white pl-11 pr-4 font-['Plus_Jakarta_Sans'] text-sm text-zinc-900 outline-none placeholder:text-zinc-500/70 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                :aria-invalid="!!erreur('email')"
+                :class="erreur('email') ? 'border-red-300' : 'border-zinc-200'"
+                class="h-[52px] w-full rounded-xl border bg-white pl-11 pr-4 font-['Plus_Jakarta_Sans'] text-sm text-zinc-900 outline-none placeholder:text-zinc-500/70 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
               />
 
               <span
@@ -58,10 +63,10 @@
               </span>
             </div>
             <p
-            v-if="emailError"
-            class="-mt-2 text-sm text-red-600"
+            v-if="erreur('email')"
+            class="text-sm text-red-600"
           >
-            {{ emailError }}
+            {{ erreur('email') }}
           </p>
           </div>
 
@@ -88,11 +93,15 @@
               <input
                 id="password"
                 v-model="password"
+                name="password"
                 :type="showPassword ? 'text' : 'password'"
-                @input="validatePassword"
+                @blur="quitter('password')"
+                @input="modifier('password')"
                 placeholder="Votre mot de passe"
                 autocomplete="current-password"
-                class="h-[52px] w-full rounded-xl border border-zinc-200 bg-white pl-11 pr-4 font-['Plus_Jakarta_Sans'] text-sm text-zinc-900 outline-none placeholder:text-zinc-500/70 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                :aria-invalid="!!erreur('password')"
+                :class="erreur('password') ? 'border-red-300' : 'border-zinc-200'"
+                class="h-[52px] w-full rounded-xl border bg-white pl-11 pr-4 font-['Plus_Jakarta_Sans'] text-sm text-zinc-900 outline-none placeholder:text-zinc-500/70 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
               />
 
               <span
@@ -111,10 +120,10 @@
                 </button>
               </div>
               <p
-                v-if="passwordError"
-                class="-mt-2 text-sm text-red-600"
+                v-if="erreur('password')"
+                class="text-sm text-red-600"
               >
-                {{ passwordError }}
+                {{ erreur('password') }}
               </p>
             </div>
 
@@ -162,10 +171,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel.vue'
-import {
-  isRequired,
-  isValidEmail,
-} from '../../utils/validation'
+import { useFormulaire } from '../../composables/useFormulaire'
+import { erreurEmail } from '../../utils/validation'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -176,58 +183,11 @@ const email = ref('')
 const password = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
-const emailError = ref('')
-const passwordError = ref('')
 
-const validateEmail = () => {
-  emailError.value = ''
-  let isValid = true
-
-  if (!isRequired(email.value)) {
-    emailError.value = 'L’adresse e-mail est obligatoire.'
-    isValid = false
-  } else if (!isValidEmail(email.value)) {
-    emailError.value = 'Veuillez saisir une adresse e-mail valide.'
-    isValid = false
-  }
-
-  return isValid
-}
-
-const validatePassword = () => {
-  passwordError.value = ''
-
-  let isValid = true
-
-  if (!isRequired(password.value)) {
-    passwordError.value = 'Le mot de passe est obligatoire.'
-    isValid = false
-  }
-
-  return isValid
-}
-
-const validateForm = () => {
-  emailError.value = ''
-  passwordError.value = ''
-
-  let isValid = true
-
-  if (!isRequired(email.value)) {
-    emailError.value = 'L’adresse e-mail est obligatoire.'
-    isValid = false
-  } else if (!isValidEmail(email.value)) {
-    emailError.value = 'Veuillez saisir une adresse e-mail valide.'
-    isValid = false
-  }
-
-  if (!isRequired(password.value)) {
-    passwordError.value = 'Le mot de passe est obligatoire.'
-    isValid = false
-  }
-
-  return isValid
-}
+const { erreur, quitter, modifier, toutVerifier } = useFormulaire({
+  email: () => erreurEmail(email.value),
+  password: () => (password.value ? '' : 'Le mot de passe est obligatoire.'),
+})
 
 const redirigerSelonRole = (tenant) => {
   authStore.definirTenantCourant(tenant)
@@ -258,15 +218,13 @@ const redirigerSelonRole = (tenant) => {
 const handleLogin = async () => {
   errorMessage.value = ''
 
-  if (!validateForm()) {
-    return
-  }
+  if (!toutVerifier()) return
 
   isLoading.value = true
 
   try {
     await authStore.seConnecter(
-      email.value,
+      email.value.trim(),
       password.value
     )
 

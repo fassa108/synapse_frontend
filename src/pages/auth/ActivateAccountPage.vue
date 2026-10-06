@@ -1,15 +1,17 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel.vue'
+import CriteresMotDePasse from '../../components/auth/CriteresMotDePasse.vue'
+import { useFormulaire } from '../../composables/useFormulaire'
 import { activerCompte } from '../../services/auth'
+import { erreurConfirmation, erreurMotDePasse } from '../../utils/validation'
 
 const route = useRoute()
 const router = useRouter()
 
 const password = ref('')
 const confirmationPassword = ref('')
-const acceptTerms = ref(false)
 
 const showPassword = ref(false)
 const showConfirmation = ref(false)
@@ -17,121 +19,40 @@ const showConfirmation = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
-const confirmationError = ref('')
 
-/*
- * Vérification de la robustesse du mot de passe.
- * Le backend impose actuellement 8 caractères minimum.
- * Les autres critères servent ici d'indicateurs visuels.
- */
-const passwordRules = computed(() => ({
-  length: password.value.length >= 8,
-  uppercase: /[A-Z]/.test(password.value),
-  number: /[0-9]/.test(password.value),
-  special: /[!@#$%]/.test(password.value),
-}))
-
-const passwordScore = computed(() => {
-  return Object.values(passwordRules.value).filter(Boolean).length
-})
-
-const passwordStrength = computed(() => {
-  if (!password.value) {
-    return ''
-  }
-
-  if (passwordScore.value <= 1) {
-    return 'Faible'
-  }
-
-  if (passwordScore.value === 2) {
-    return 'Moyen'
-  }
-
-  if (passwordScore.value === 3) {
-    return 'Fort'
-  }
-
-  return 'Très fort'
-})
-
-const verifierConfirmation = () => {
-  if (!confirmationPassword.value) {
-    confirmationError.value = ''
-    return
-  }
-
-  if (password.value !== confirmationPassword.value) {
-    confirmationError.value =
-      'Les mots de passe ne correspondent pas.'
-  } else {
-    confirmationError.value = ''
-  }
-}
+const { erreur, quitter, modifier, toutVerifier, erreursDuServeur } = useFormulaire(
+  {
+    password: () => erreurMotDePasse(password.value),
+    confirmation: () => erreurConfirmation(password.value, confirmationPassword.value),
+  },
+  { correspondances: { password_confirm: 'confirmation' } },
+)
 
 const activer = async () => {
   errorMessage.value = ''
   successMessage.value = ''
-
-  if (!password.value || !confirmationPassword.value) {
-    errorMessage.value = 'Veuillez remplir tous les champs.'
-    return
-  }
-
-  if (password.value.length < 8) {
-    errorMessage.value =
-      'Le mot de passe doit contenir au moins 8 caractères.'
-    return
-  }
-
-  if (password.value !== confirmationPassword.value) {
-    confirmationError.value =
-      'Les mots de passe ne correspondent pas.'
-    return
-  }
-
-  if (!acceptTerms.value) {
-    errorMessage.value =
-      'Vous devez accepter les conditions générales d’utilisation.'
-    return
-  }
+  if (!toutVerifier()) return
 
   const token = route.params.token
-
   if (!token) {
-    errorMessage.value =
-      'Le lien d’activation est invalide ou incomplet.'
+    errorMessage.value = 'Le lien d’activation est invalide ou incomplet.'
     return
   }
 
   isLoading.value = true
-
   try {
-    await activerCompte(
-      token,
-      password.value,
-      confirmationPassword.value
-    )
+    await activerCompte(token, password.value, confirmationPassword.value)
 
-    successMessage.value =
-      'Votre compte a été activé avec succès.'
-
+    successMessage.value = 'Votre compte a été activé avec succès.'
     setTimeout(() => {
       router.push('/login')
     }, 1500)
   } catch (error) {
-
-    const data = error.response?.data
-
-    // Lien invalide ou expiré : le backend renvoie une liste de messages.
+    // Lien invalide ou expiré : message général ; règles du mot de passe : sous le champ
     errorMessage.value =
-      (Array.isArray(data) && data[0]) ||
-      (error.response?.status === 429 && 'Trop de tentatives. Réessayez plus tard.') ||
-      error.response?.data?.detail ||
-      error.response?.data?.non_field_errors?.[0] ||
-      error.response?.data?.password?.[0] ||
-      error.response?.data?.password_confirm?.[0] ||
-      'Impossible d’activer votre compte.'
+      erreursDuServeur(error.response?.data) ||
+      (error.response?.status === 429 ? 'Trop de tentatives. Réessayez plus tard.' : '') ||
+      (erreur('password') || erreur('confirmation') ? '' : 'Impossible d’activer votre compte.')
   } finally {
     isLoading.value = false
   }
@@ -206,6 +127,7 @@ const activer = async () => {
           </p>
         </section>
 
+        <form novalidate @submit.prevent="activer">
         <!-- =========================
              MOT DE PASSE
         ========================== -->
@@ -218,17 +140,6 @@ const activer = async () => {
               Nouveau mot de passe
             </label>
 
-            <span
-              v-if="password"
-              class="text-xs font-semibold"
-              :class="
-                passwordScore >= 3
-                  ? 'text-emerald-600'
-                  : 'text-slate-500'
-              "
-            >
-              {{ passwordStrength }}
-            </span>
           </div>
 
           <!-- Input -->
@@ -256,6 +167,11 @@ const activer = async () => {
             <input
               id="password"
               v-model="password"
+              name="password"
+              @blur="quitter('password')"
+              @input="modifier('password')"
+              :aria-invalid="!!erreur('password')"
+              :class="{ '!border-red-300': erreur('password') }"
               :type="showPassword ? 'text' : 'password'"
               autocomplete="new-password"
               placeholder="Votre nouveau mot de passe"
@@ -311,110 +227,14 @@ const activer = async () => {
             </button>
           </div>
 
-          <!-- Robustesse -->
-          <div
-            v-if="password"
-            class="mt-2 flex items-center justify-between"
+          <p
+            v-if="erreur('password')"
+            class="mt-2 text-xs font-medium text-red-500"
           >
-            <span class="text-xs text-slate-500">
-              Robustesse du mot de passe
-            </span>
+            {{ erreur('password') }}
+          </p>
 
-            <span class="text-xs font-semibold text-emerald-600">
-              {{ passwordStrength }}
-            </span>
-          </div>
-
-          <!-- Checklist -->
-          <div
-            class="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4"
-          >
-            <div class="grid gap-2 sm:grid-cols-2">
-              <div
-                class="flex items-center gap-2 text-xs"
-                :class="
-                  passwordRules.length
-                    ? 'text-emerald-600'
-                    : 'text-slate-500'
-                "
-              >
-                <span
-                  class="flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
-                  :class="
-                    passwordRules.length
-                      ? 'bg-emerald-100'
-                      : 'bg-slate-200'
-                  "
-                >
-                  {{ passwordRules.length ? '✓' : '•' }}
-                </span>
-                8 caractères minimum
-              </div>
-
-              <div
-                class="flex items-center gap-2 text-xs"
-                :class="
-                  passwordRules.uppercase
-                    ? 'text-emerald-600'
-                    : 'text-slate-500'
-                "
-              >
-                <span
-                  class="flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
-                  :class="
-                    passwordRules.uppercase
-                      ? 'bg-emerald-100'
-                      : 'bg-slate-200'
-                  "
-                >
-                  {{ passwordRules.uppercase ? '✓' : '•' }}
-                </span>
-                Au moins 1 majuscule
-              </div>
-
-              <div
-                class="flex items-center gap-2 text-xs"
-                :class="
-                  passwordRules.number
-                    ? 'text-emerald-600'
-                    : 'text-slate-500'
-                "
-              >
-                <span
-                  class="flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
-                  :class="
-                    passwordRules.number
-                      ? 'bg-emerald-100'
-                      : 'bg-slate-200'
-                  "
-                >
-                  {{ passwordRules.number ? '✓' : '•' }}
-                </span>
-                Au moins 1 chiffre
-              </div>
-
-              <div
-                class="flex items-center gap-2 text-xs"
-                :class="
-                  passwordRules.special
-                    ? 'text-emerald-600'
-                    : 'text-slate-500'
-                "
-              >
-                <span
-                  class="flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
-                  :class="
-                    passwordRules.special
-                      ? 'bg-emerald-100'
-                      : 'bg-slate-200'
-                  "
-                >
-                  {{ passwordRules.special ? '✓' : '•' }}
-                </span>
-                1 caractère spécial (!@#$%)
-              </div>
-            </div>
-          </div>
+          <CriteresMotDePasse :mot-de-passe="password" class="mt-4" />
         </section>
 
         <!-- =========================
@@ -452,6 +272,8 @@ const activer = async () => {
             <input
               id="confirmationPassword"
               v-model="confirmationPassword"
+              name="confirmation"
+              @blur="quitter('confirmation')"
               :type="
                 showConfirmation ? 'text' : 'password'
               "
@@ -459,11 +281,12 @@ const activer = async () => {
               placeholder="Confirmez votre mot de passe"
               class="h-12 w-full rounded-xl border bg-white pl-12 pr-12 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:ring-4"
               :class="
-                confirmationError
+                erreur('confirmation')
                   ? 'border-red-300 focus:border-red-400 focus:ring-red-500/10'
                   : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10'
               "
-              @input="verifierConfirmation"
+              @input="modifier('confirmation')"
+              :aria-invalid="!!erreur('confirmation')"
             />
 
             <!-- Eye -->
@@ -516,10 +339,10 @@ const activer = async () => {
           </div>
 
           <p
-            v-if="confirmationError"
+            v-if="erreur('confirmation')"
             class="mt-2 text-xs font-medium text-red-500"
           >
-            {{ confirmationError }}
+            {{ erreur('confirmation') }}
           </p>
 
           <p
@@ -534,38 +357,6 @@ const activer = async () => {
           </p>
         </section>
 
-        <!-- =========================
-             CGU
-        ========================== -->
-        <label
-          class="mb-6 flex cursor-pointer items-start gap-3"
-        >
-          <input
-            v-model="acceptTerms"
-            type="checkbox"
-            class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          />
-
-          <span
-            class="text-xs leading-5 text-slate-500"
-          >
-            J'accepte les
-            <a
-              href="#"
-              class="font-medium text-indigo-600 hover:underline"
-            >
-              Conditions Générales d'Utilisation
-            </a>
-            et la
-            <a
-              href="#"
-              class="font-medium text-indigo-600 hover:underline"
-            >
-              Politique de confidentialité
-            </a>
-            d'EduHub.
-          </span>
-        </label>
 
         <!-- =========================
              MESSAGES
@@ -588,10 +379,9 @@ const activer = async () => {
              BOUTON
         ========================== -->
         <button
-          type="button"
+          type="submit"
           :disabled="isLoading"
           class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-60"
-          @click="activer"
         >
           <span>
             {{
@@ -617,6 +407,7 @@ const activer = async () => {
             />
           </svg>
         </button>
+        </form>
 
         <!-- =========================
              LOGIN
