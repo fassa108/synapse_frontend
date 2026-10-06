@@ -59,7 +59,7 @@
             <p
               class="font-['Plus_Jakarta_Sans'] text-xs leading-5 text-zinc-600"
             >
-              Le lien est valable pendant 15 minutes.
+              Le lien est valable pendant 2 heures.
             </p>
           </div>
 

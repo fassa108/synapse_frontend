@@ -115,7 +115,8 @@ onMounted(async () => {
 const premier = (v) => (Array.isArray(v) ? v[0] : v)
 const messageErreur = (e, defaut) => {
   const d = e.response?.data
-  return d?.detail || premier(d?.non_field_errors) || premier(d?.apprenant) || premier(d?.groupe) || premier(d?.brief) || premier(d) || defaut
+  return d?.detail || premier(d?.non_field_errors) || premier(d?.apprenant) || premier(d?.groupe) || premier(d?.brief)
+    || premier(d?.date_limite) || premier(d?.statut) || (Array.isArray(d) || typeof d === 'string' ? premier(d) : '') || defaut
 }
 
 // ─── Compétences visées ───────────────────────────────────────────────────────

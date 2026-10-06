@@ -36,7 +36,7 @@
               class="font-['Plus_Jakarta_Sans'] text-sm font-normal leading-6 text-zinc-700"
             >
               Indiquez votre adresse e-mail pour recevoir un lien de
-              réinitialisation sécurisé (valable 15 minutes).
+              réinitialisation sécurisé (valable 2 heures).
             </p>
 
           </div>
