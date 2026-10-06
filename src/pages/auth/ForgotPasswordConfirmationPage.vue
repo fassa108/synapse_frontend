@@ -5,7 +5,7 @@
 
     <!-- Partie droite -->
     <section
-      class="flex min-h-screen items-center justify-start bg-slate-50 px-6 py-12 sm:px-10 lg:px-36 lg:py-24"
+      class="flex lg:min-h-screen items-start lg:items-center justify-start bg-slate-50 px-6 py-12 sm:px-10 lg:px-36 lg:py-24"
     >
       <div class="w-full max-w-96">
         <div class="flex flex-col gap-8">
@@ -59,7 +59,7 @@
             <p
               class="font-['Plus_Jakarta_Sans'] text-xs leading-5 text-zinc-600"
             >
-              Le lien est valable pendant 15 minutes.
+              Le lien est valable pendant 2 heures.
             </p>
           </div>
 

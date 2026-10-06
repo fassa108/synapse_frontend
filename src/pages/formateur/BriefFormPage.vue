@@ -92,6 +92,14 @@ const versLocal = (iso) => {
 }
 const versIso = (local) => (local ? new Date(local).toISOString() : null)
 
+// Pas de début dans le passé (au jour près), sauf pour un brief déjà commencé
+// dont on garde la date : même règle que le backend.
+const aujourdhui = versLocal(new Date().toISOString()).slice(0, 10)
+const debutInitial = ref('')
+const minDebut = computed(() =>
+  debutInitial.value && debutInitial.value.slice(0, 10) < aujourdhui ? debutInitial.value.slice(0, 10) + 'T00:00' : `${aujourdhui}T00:00`
+)
+
 onMounted(async () => {
   try {
     const [proms, comps, cns, nivs, ress, cats] = await Promise.all([
@@ -124,6 +132,7 @@ onMounted(async () => {
         competence_niveaux: [...brief.competence_niveaux],
         ressources: [...brief.ressources],
       })
+      debutInitial.value = form.date_debut
       await chargerModules()
     } else {
       // Création : uniquement dans une promotion ouverte
@@ -225,8 +234,11 @@ const erreursEtape1 = () => {
   if (!form.titre.trim()) e.titre = 'Le titre est obligatoire.'
   if (!form.description.trim()) e.description = 'La description est obligatoire.'
   if (!form.date_debut) e.date_debut = 'La date de début est obligatoire.'
+  else if (form.date_debut.slice(0, 10) < aujourdhui && form.date_debut.slice(0, 10) !== debutInitial.value.slice(0, 10)) {
+    e.date_debut = "La date de début ne peut pas être avant aujourd'hui."
+  }
   if (!form.date_limite) e.date_limite = 'La date limite est obligatoire.'
-  if (form.date_debut && form.date_limite && form.date_limite < form.date_debut) {
+  if (form.date_debut && form.date_limite && form.date_limite <= form.date_debut) {
     e.date_limite = 'La date limite doit être après la date de début.'
   }
   return e
@@ -381,7 +393,7 @@ const enregistrer = async () => {
             </FormField>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Date de début" required :error="erreurs.date_debut" hint="Les dépôts sont possibles à partir de cette date.">
-                <TextInput v-model="form.date_debut" type="datetime-local" :disabled="envoi" />
+                <TextInput v-model="form.date_debut" type="datetime-local" :min="minDebut" :disabled="envoi" />
               </FormField>
               <FormField label="Date limite" required :error="erreurs.date_limite" hint="Un dépôt après cette date est accepté mais marqué en retard.">
                 <TextInput v-model="form.date_limite" type="datetime-local" :disabled="envoi" />

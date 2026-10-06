@@ -15,6 +15,7 @@ import { computed } from 'vue'
  *   - 'membre'   : Actif / Suspendu   → MembreTenant.actif (accès à l'organisme)
  *   - 'promotion': Ouverte / Clôturée → Promotion.actif
  *   - 'brief'   : statuts BROUILLON / PUBLIE / ARCHIVE
+ *   - 'demande' : inscription d'organisme EN_ATTENTE_PAIEMENT / PAYEE
  */
 const props = defineProps({
   value: {
@@ -56,6 +57,14 @@ const config = computed(() => {
       BROUILLON: { label: 'Brouillon', classes: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200' },
       PUBLIE:    { label: 'Publié',    classes: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200' },
       ARCHIVE:   { label: 'Archivé',  classes: 'bg-orange-50 text-orange-600 ring-1 ring-orange-200' },
+    }
+    return map[props.value] ?? { label: props.value, classes: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200' }
+  }
+
+  if (props.type === 'demande') {
+    const map = {
+      EN_ATTENTE_PAIEMENT: { label: 'Paiement en attente', classes: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' },
+      PAYEE:               { label: 'Payée',               classes: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
     }
     return map[props.value] ?? { label: props.value, classes: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200' }
   }

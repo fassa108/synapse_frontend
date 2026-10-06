@@ -194,6 +194,7 @@ export const useAuthStore = defineStore('auth', () => {
     rafraichirAccessToken,
     enregistrerTokens,
     definirTenantCourant,
+    mettreAJourTenantCourant,
     marquerOrganismeSuspendu,
     marquerAccesSuspendu,
   }

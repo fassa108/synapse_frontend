@@ -25,7 +25,13 @@ export const inviterMembre = (tenantId, payload) =>
     .post(`accounts/tenants/${tenantId}/membres/`, payload)
     .then((r) => r.data)
 
-export const modifierMembre = (tenantId, membreId, payload) =>
+// Nouveau lien d'activation pour un compte « En attente » (5 envois par heure et par membre)
+export const renvoyerInvitation = (tenantId, membreId) =>
+  api
+    .post(`accounts/tenants/${tenantId}/membres/${membreId}/renvoyer-invitation/`)
+    .then((r) => r.data)
+
+export const modifierMembre =(tenantId, membreId, payload) =>
   api
     .patch(`accounts/tenants/${tenantId}/membres/${membreId}/`, payload)
     .then((r) => r.data)

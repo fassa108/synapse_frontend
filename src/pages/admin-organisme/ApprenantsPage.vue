@@ -10,13 +10,13 @@ import AppPagination from '../../components/ui/AppPagination.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import StatCard from '../../components/dashboard/StatCard.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
-import FormField from '../../components/ui/FormField.vue'
-import TextInput from '../../components/ui/TextInput.vue'
 import { useAuthStore } from '../../stores/auth'
 import SuspensionMembreModal from '../../components/membres/SuspensionMembreModal.vue'
-import { getMembres, inviterMembre } from '../../services/membres'
+import AjoutMembreModal from '../../components/membres/AjoutMembreModal.vue'
+import MembreActions from '../../components/membres/MembreActions.vue'
+import { useRenvoiInvitation } from '../../composables/useRenvoiInvitation'
+import { getMembres } from '../../services/membres'
 import { getPromotions, getInscriptions } from '../../services/pedagogie'
-import { isValidEmail } from '../../utils/validation'
 
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -31,17 +31,8 @@ const search         = ref('')
 const page           = ref(1)
 const PAGE_SIZE      = 20
 
+// L'inscription en promotion se fait depuis le détail de la promotion.
 const showModal       = ref(false)
-// Formulaire d'invitation : uniquement prénom, nom, email.
-// La promotion n'est PAS proposée ici car le backend refuse d'inscrire
-// un utilisateur dont le compte n'est pas encore activé.
-// L'inscription en promotion se fait depuis le détail de la promotion,
-// une fois le compte activé.
-const inviteForm      = ref({ prenom: '', nom: '', email: '' })
-const inviteErrors    = ref({})
-const inviteGlobalErr = ref('')
-const inviteLoading   = ref(false)
-const inviteSuccess   = ref('')
 
 const columns = [
   { key: 'nom',              label: 'Apprenant' },
@@ -50,7 +41,7 @@ const columns = [
   { key: 'formation',        label: 'Formation' },
   { key: 'statut_organisme', label: 'Accès',  width: '110px' },
   { key: 'statut_compte',    label: 'Compte',     width: '120px' },
-  { key: 'actions', label: 'Actions', width: '90px' },
+  { key: 'actions', label: 'Actions', width: '110px' },
 ]
 
 // ─── Suspension d'accès ───────────────────────────────────────────────────────
@@ -59,6 +50,14 @@ const membreCible = ref(null)
 const handleMembreModifie = (membre) => {
   apprenants.value = apprenants.value.map((m) => (m.id === membre.id ? membre : m))
   membreCible.value = null
+}
+
+// ─── Invitation ───────────────────────────────────────────────────────────────
+const { enCours: renvoiEnCours, retour: retourRenvoi, renvoyer } = useRenvoiInvitation(tenantId)
+
+const rechargerMembres = async () => {
+  const membres = await getMembres(tenantId)
+  apprenants.value = membres.filter((m) => m.role === 'APPRENANT')
 }
 
 onMounted(async () => {
@@ -132,82 +131,6 @@ const nomApprenant = (m) =>
     ? `${m.utilisateur_prenom} ${m.utilisateur_nom}`
     : `Apprenant #${m.utilisateur}`
 
-// ─── Validation invitation ────────────────────────────────────────────────────
-// Le backend AjouterMembreSerializer exige :
-//   - email  : obligatoire
-//   - nom    : obligatoire si l'email n'existe pas encore dans la plateforme
-//   - prenom : obligatoire si l'email n'existe pas encore dans la plateforme
-// On demande toujours les trois pour couvrir le cas d'un nouvel utilisateur.
-// Si l'email existe déjà, le backend ignore nom/prenom et ajoute le membre.
-const validateInvite = () => {
-  inviteErrors.value = {}
-  if (!inviteForm.value.email.trim()) {
-    inviteErrors.value.email = "L'adresse e-mail est obligatoire."
-  } else if (!isValidEmail(inviteForm.value.email)) {
-    inviteErrors.value.email = "L'adresse e-mail n'est pas valide."
-  }
-  if (!inviteForm.value.prenom.trim()) {
-    inviteErrors.value.prenom = 'Le prénom est obligatoire.'
-  }
-  if (!inviteForm.value.nom.trim()) {
-    inviteErrors.value.nom = 'Le nom est obligatoire.'
-  }
-  return Object.keys(inviteErrors.value).length === 0
-}
-
-const handleInviter = async () => {
-  if (!validateInvite()) return
-
-  inviteLoading.value   = true
-  inviteGlobalErr.value = ''
-  inviteSuccess.value   = ''
-
-  try {
-    await inviterMembre(tenantId, {
-      prenom: inviteForm.value.prenom.trim(),
-      nom:    inviteForm.value.nom.trim(),
-      email:  inviteForm.value.email.trim(),
-      role:   'APPRENANT',
-    })
-
-    // Message honnête : on confirme uniquement la création du compte,
-    // pas l'envoi d'un email (la tâche Celery d'envoi n'est pas encore
-    // implémentée côté backend).
-    inviteSuccess.value =
-      'Compte créé avec succès. Vous pouvez déjà inscrire l\'apprenant dans une promotion, depuis la page de la promotion.'
-
-    // Rafraîchir la liste
-    const membres = await getMembres(tenantId)
-    apprenants.value = membres.filter((m) => m.role === 'APPRENANT')
-
-    // Réinitialiser le formulaire
-    inviteForm.value = { prenom: '', nom: '', email: '' }
-  } catch (e) {
-    const data = e.response?.data
-    if (data && typeof data === 'object') {
-      Object.keys(data).forEach((key) => {
-        const msg = Array.isArray(data[key]) ? data[key][0] : data[key]
-        if (key === 'non_field_errors' || key === 'detail') {
-          inviteGlobalErr.value = msg
-        } else {
-          inviteErrors.value[key] = msg
-        }
-      })
-    } else {
-      inviteGlobalErr.value = "Une erreur est survenue lors de la création du compte."
-    }
-  } finally {
-    inviteLoading.value = false
-  }
-}
-
-const closeModal = () => {
-  showModal.value       = false
-  inviteForm.value      = { prenom: '', nom: '', email: '' }
-  inviteErrors.value    = {}
-  inviteGlobalErr.value = ''
-  inviteSuccess.value   = ''
-}
 </script>
 
 <template>
@@ -245,6 +168,7 @@ const closeModal = () => {
       </div>
 
       <InfoBanner v-if="error" variant="error" :message="error" class="mb-4" />
+      <InfoBanner v-if="retourRenvoi" :variant="retourRenvoi.variant" :message="retourRenvoi.message" class="mb-4" />
 
       <DataTable
         :columns="columns"
@@ -280,23 +204,12 @@ const closeModal = () => {
           <StatusBadge :value="row.actif" type="membre" />
         </template>
         <template #cell-actions="{ row }">
-          <!-- Icône seule, libellé affiché au survol -->
-          <button
-            type="button"
-            class="group/action relative flex h-8 w-8 items-center justify-center rounded-lg transition"
-            :class="row.actif
-              ? 'text-red-600 hover:bg-red-50'
-              : 'text-indigo-600 hover:bg-indigo-50'"
-            :aria-label="row.actif ? 'Suspendre' : 'Réactiver'"
-            @click.stop="membreCible = row"
-          >
-            <i :class="row.actif ? 'fa-solid fa-pause' : 'fa-solid fa-play'" class="text-xs"></i>
-            <span
-              class="pointer-events-none absolute right-full top-1/2 mr-1.5 -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 font-['Plus_Jakarta_Sans'] text-xs font-medium text-white opacity-0 shadow transition group-hover/action:opacity-100"
-            >
-              {{ row.actif ? 'Suspendre' : 'Réactiver' }}
-            </span>
-          </button>
+          <MembreActions
+            :membre="row"
+            :renvoi="renvoiEnCours === row.id"
+            @renvoyer="renvoyer(row)"
+            @suspendre="membreCible = row"
+          />
         </template>
 
         <template #cell-statut_compte="{ row }">
@@ -328,114 +241,14 @@ const closeModal = () => {
 
     </div>
 
-    <!-- ─── Modal : créer un apprenant ──────────────────────────────────────── -->
-    <Teleport to="body">
-      <div
-        v-if="showModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-        @click.self="closeModal"
-      >
-        <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
-
-          <!-- En-tête -->
-          <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <h2 class="font-['Sora'] text-base font-semibold text-gray-900">
-              Ajouter un apprenant
-            </h2>
-            <button
-              type="button"
-              @click="closeModal"
-              class="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-slate-100"
-              aria-label="Fermer"
-            >
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          <!-- Corps -->
-          <div class="px-6 py-5">
-            <InfoBanner
-              v-if="inviteSuccess"
-              variant="success"
-              :message="inviteSuccess"
-              class="mb-4"
-            />
-            <InfoBanner
-              v-if="inviteGlobalErr"
-              variant="error"
-              :message="inviteGlobalErr"
-              class="mb-4"
-            />
-
-            <form
-              v-if="!inviteSuccess"
-              @submit.prevent="handleInviter"
-              class="flex flex-col gap-4"
-              novalidate
-            >
-              <div class="grid grid-cols-2 gap-3">
-                <FormField label="Prénom" :error="inviteErrors.prenom" required>
-                  <TextInput
-                    v-model="inviteForm.prenom"
-                    placeholder="Marie"
-                    :disabled="inviteLoading"
-                  />
-                </FormField>
-                <FormField label="Nom" :error="inviteErrors.nom" required>
-                  <TextInput
-                    v-model="inviteForm.nom"
-                    placeholder="Dupont"
-                    :disabled="inviteLoading"
-                  />
-                </FormField>
-              </div>
-
-              <FormField
-                label="Adresse e-mail"
-                :error="inviteErrors.email"
-                required
-                hint="Si ce compte existe déjà, il sera simplement ajouté à l'organisme."
-              >
-                <TextInput
-                  v-model="inviteForm.email"
-                  type="email"
-                  placeholder="marie.dupont@exemple.fr"
-                  :disabled="inviteLoading"
-                />
-              </FormField>
-
-              <!-- Note métier : pas de sélection de promotion ici.
-                   L'inscription se fait depuis le détail d'une promotion,
-                   sans attendre l'activation du compte. -->
-              <InfoBanner
-                variant="info"
-                message="L'inscription dans une promotion se fait depuis la page de la promotion, sans attendre l'activation du compte."
-              />
-
-              <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
-                <AppButton
-                  type="button"
-                  variant="secondary"
-                  @click="closeModal"
-                  :disabled="inviteLoading"
-                >
-                  Annuler
-                </AppButton>
-                <AppButton type="submit" variant="primary" :loading="inviteLoading">
-                  Créer le compte
-                </AppButton>
-              </div>
-            </form>
-
-            <!-- État succès -->
-            <div v-else class="flex justify-end pt-2">
-              <AppButton variant="primary" @click="closeModal">Fermer</AppButton>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </Teleport>
+    <AjoutMembreModal
+      v-if="showModal"
+      :tenant-id="tenantId"
+      role="APPRENANT"
+      libelle="apprenant"
+      @fermer="showModal = false"
+      @ajoute="rechargerMembres"
+    />
 
 
     <SuspensionMembreModal

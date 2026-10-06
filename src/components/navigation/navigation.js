@@ -154,6 +154,11 @@ export const navigationByRole = {
       icon: 'fa-solid fa-building',
       to: '/admin/organismes',
     },
+    {
+      label: 'Inscriptions',
+      icon: 'fa-solid fa-inbox',
+      to: '/admin/demandes',
+    },
   ],
 }
 

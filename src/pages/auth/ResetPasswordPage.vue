@@ -3,6 +3,9 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { resetPassword } from '../../services/auth'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel.vue'
+import CriteresMotDePasse from '../../components/auth/CriteresMotDePasse.vue'
+import { useFormulaire } from '../../composables/useFormulaire'
+import { erreurConfirmation, erreurMotDePasse } from '../../utils/validation'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,43 +20,20 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
-const confirmationError = ref('')
-
-const verifierConfirmation = () => {
-  if (!confirmationPassword.value) {
-    confirmationError.value = ''
-    return
-  }
-
-  if (password.value !== confirmationPassword.value) {
-    confirmationError.value = 'Les mots de passe ne correspondent pas.'
-  } else {
-    confirmationError.value = ''
-  }
-}
+const { erreur, quitter, modifier, toutVerifier, erreursDuServeur } = useFormulaire(
+  {
+    password: () => erreurMotDePasse(password.value),
+    confirmation: () => erreurConfirmation(password.value, confirmationPassword.value),
+  },
+  { correspondances: { password_confirm: 'confirmation' } },
+)
 
 const reinitialiser = async () => {
   errorMessage.value = ''
   successMessage.value = ''
-
-  if (!password.value || !confirmationPassword.value) {
-    errorMessage.value = 'Veuillez remplir tous les champs.'
-    return
-  }
-
-  if (password.value.length < 8) {
-    errorMessage.value =
-      'Le mot de passe doit comporter au moins 8 caractères.'
-    return
-  }
-
-  if (password.value !== confirmationPassword.value) {
-    errorMessage.value = 'Les mots de passe ne correspondent pas.'
-    return
-  }
+  if (!toutVerifier()) return
 
   isLoading.value = true
-
   try {
     await resetPassword(
       route.params.uid,
@@ -69,12 +49,11 @@ const reinitialiser = async () => {
       router.push('/login')
     }, 1500)
   } catch (error) {
-
+    // Lien invalide ou expiré : message général ; règles du mot de passe : sous le champ
     errorMessage.value =
-      error.response?.data?.detail ||
-      error.response?.data?.non_field_errors?.[0] ||
-      error.response?.data?.password?.[0] ||
-      'Impossible de réinitialiser le mot de passe.'
+      erreursDuServeur(error.response?.data) ||
+      (error.response?.status === 429 ? 'Trop de tentatives. Réessayez plus tard.' : '') ||
+      (erreur('password') || erreur('confirmation') ? '' : 'Impossible de réinitialiser le mot de passe.')
   } finally {
     isLoading.value = false
   }
@@ -90,7 +69,7 @@ const reinitialiser = async () => {
 
     <!-- Partie droite -->
     <section
-      class="flex min-h-screen items-center justify-start bg-slate-50 px-6 py-12 sm:px-10 lg:px-36 lg:py-16"
+      class="flex lg:min-h-screen items-start lg:items-center justify-start bg-slate-50 px-6 py-12 sm:px-10 lg:px-36 lg:py-16"
     >
       <div class="w-full max-w-96 py-6">
 
@@ -121,8 +100,7 @@ const reinitialiser = async () => {
             <p
               class="font-['Plus_Jakarta_Sans'] text-sm font-normal leading-6 text-zinc-700"
             >
-              Choisissez un mot de passe sécurisé comportant au moins
-              8 caractères pour protéger votre compte.
+              Choisissez un mot de passe sécurisé pour protéger votre compte.
             </p>
 
           </div>
@@ -130,6 +108,7 @@ const reinitialiser = async () => {
           <!-- Formulaire -->
           <form
             @submit.prevent="reinitialiser"
+            novalidate
             class="flex flex-col gap-5"
           >
 
@@ -148,7 +127,11 @@ const reinitialiser = async () => {
                 <input
                   id="password"
                   v-model="password"
-                  @input="verifierConfirmation"
+                  name="password"
+                  @blur="quitter('password')"
+                  @input="modifier('password')"
+                  :aria-invalid="!!erreur('password')"
+                  :class="{ '!border-red-300': erreur('password') }"
                   :type="showPassword ? 'text' : 'password'"
                   placeholder="••••••••••••"
                   autocomplete="new-password"
@@ -183,17 +166,13 @@ const reinitialiser = async () => {
 
               </div>
               <p
-                v-if="confirmationError"
-                class="flex items-center gap-1.5 px-1 text-xs font-medium leading-4 text-red-600"
+                v-if="erreur('password')"
+                class="flex items-start gap-1.5 px-1 text-xs font-medium leading-4 text-red-600"
               >
-                <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
-                {{ confirmationError }}
+                <i class="fa-solid fa-circle-exclamation mt-0.5 text-[10px]"></i>
+                {{ erreur('password') }}
               </p>
-              <p
-                class="pt-0.5 font-['Plus_Jakarta_Sans'] text-xs font-medium leading-4 tracking-tight text-zinc-700"
-              >
-                8 caractères minimum, 1 chiffre et 1 lettre majuscule.
-              </p>
+              <CriteresMotDePasse :mot-de-passe="password" class="mt-1" />
 
             </div>
 
@@ -212,7 +191,11 @@ const reinitialiser = async () => {
                 <input
                   id="confirmationPassword"
                   v-model="confirmationPassword"
-                  @input="verifierConfirmation"
+                  name="confirmation"
+                  @blur="quitter('confirmation')"
+                  @input="modifier('confirmation')"
+                  :aria-invalid="!!erreur('confirmation')"
+                  :class="{ '!border-red-300': erreur('confirmation') }"
                   :type="
                     showConfirmationPassword
                       ? 'text'
@@ -253,6 +236,13 @@ const reinitialiser = async () => {
                 </button>
 
               </div>
+              <p
+                v-if="erreur('confirmation')"
+                class="flex items-center gap-1.5 px-1 text-xs font-medium leading-4 text-red-600"
+              >
+                <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                {{ erreur('confirmation') }}
+              </p>
 
             </div>
 
