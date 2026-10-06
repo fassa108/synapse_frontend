@@ -6,7 +6,7 @@
 
     <!-- Partie droite -->
     <section
-      class="flex min-h-screen items-center justify-center bg-white px-6 py-12 sm:px-10 lg:px-24 lg:py-20"
+      class="flex lg:min-h-screen items-start lg:items-center justify-center bg-white px-6 py-12 sm:px-10 lg:px-24 lg:py-20"
     >
       <div class="w-full max-w-96 py-8">
 

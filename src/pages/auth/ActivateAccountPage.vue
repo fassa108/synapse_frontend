@@ -71,7 +71,7 @@ const activer = async () => {
          CONTENU
     ========================== -->
     <main
-      class="flex min-h-screen flex-1 items-center justify-center px-6 py-10 sm:px-10 lg:px-16"
+      class="flex lg:min-h-screen flex-1 items-start lg:items-center justify-center px-6 py-10 sm:px-10 lg:px-16"
     >
       <div class="w-full max-w-[576px]">
 
