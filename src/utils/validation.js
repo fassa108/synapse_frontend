@@ -24,6 +24,28 @@ export const erreurEmail = (email) => {
   return ''
 }
 
+// ─── Champs simples ───────────────────────────────────────────────────────────
+
+/** Champ texte obligatoire, avec une longueur minimale facultative. */
+export const erreurTexte = (valeur, { libelle, min = 1, max = Infinity }) => {
+  const v = valeur.trim()
+  if (!v) return `${libelle} est obligatoire.`
+  if (v.length < min) return `${libelle} doit contenir au moins ${min} caractères.`
+  if (v.length > max) return `${libelle} ne peut pas dépasser ${max} caractères.`
+  return ''
+}
+
+/** Téléphone facultatif : chiffres, espaces et + - . ( ), 7 à 15 chiffres (même règle que le backend). */
+export const erreurTelephone = (valeur) => {
+  const v = valeur.trim()
+  if (!v) return ''
+  const chiffres = v.replace(/\D/g, '').length
+  if (!/^[\d\s+().-]+$/.test(v) || chiffres < 7 || chiffres > 15) {
+    return 'Saisissez un numéro valide : chiffres, espaces et + - . ( ), 7 chiffres minimum.'
+  }
+  return ''
+}
+
 // ─── Mot de passe ─────────────────────────────────────────────────────────────
 // Règles exigées par le backend et vérifiables ici. Le backend refuse aussi
 // les mots de passe trop courants ou trop proches du nom ou de l'email :

@@ -53,6 +53,12 @@ const routes = [
 
   // ─── Admin SaaS ────────────────────────────────────────────────────────────
   {
+    path: '/admin/demandes',
+    name: 'admin-demandes',
+    component: () => import('../pages/admin-saas/DemandesInscriptionPage.vue'),
+    meta: { requiresAuth: true, roles: ['admin_saas'] },
+  },
+  {
     path: '/admin/organismes',
     name: 'admin-organismes',
     component: () => import('../pages/admin-saas/OrganismesPage.vue'),
@@ -317,6 +323,22 @@ const routes = [
 
 
   // ─── Racine ─────────────────────────────────────────────────────────────────
+  // Demande d'inscription d'un organisme (formulaire public)
+  {
+    path: '/inscription',
+    name: 'inscription',
+    component: () => import('../pages/auth/InscriptionPage.vue'),
+    meta: { public: true },
+  },
+
+  // Paiement simulé de l'abonnement (lien avec la référence secrète)
+  {
+    path: '/inscription/paiement/:reference',
+    name: 'inscription-paiement',
+    component: () => import('../pages/auth/PaiementInscriptionPage.vue'),
+    meta: { public: true },
+  },
+
   // Page d'accueil publique
   {
     path: '/',
