@@ -24,7 +24,7 @@ import DepotCarte from '../../components/livrables/DepotCarte.vue'
 import EvaluationCarte from '../../components/evaluations/EvaluationCarte.vue'
 import FormulaireEvaluation from '../../components/evaluations/FormulaireEvaluation.vue'
 import CommentairesRendu from '../../components/commentaires/CommentairesRendu.vue'
-import { styleEtat, etatRendu, dernieresParAssignation, ETATS_OPTIONS } from '../../utils/evaluation'
+import { styleEtat, etatRendu, dernieresParAssignation, peutEtreEvalue, ETATS_OPTIONS } from '../../utils/evaluation'
 import { useAuthStore } from '../../stores/auth'
 import { getLivrables, getBriefs, getEvaluations, getCommentaires } from '../../services/activites'
 import { getPromotions } from '../../services/pedagogie'
@@ -105,7 +105,7 @@ watch(filtrePromotion, () => {
 
 // ─── Évaluation ───────────────────────────────────────────────────────────────
 const dernieres = computed(() => dernieresParAssignation(evaluations.value))
-const etatDe = (l) => etatRendu(dernieres.value.get(l.assignation), true)
+const etatDe = (l) => etatRendu(dernieres.value.get(l.assignation), parAssignation.value.get(l.assignation) ?? [l])
 const etatOptions = ETATS_OPTIONS.filter((o) => o.value !== 'NON_RENDU')
 
 const filtres = computed(() => {
@@ -168,6 +168,8 @@ const evaluationSelection = computed(() => selection.value && dernieres.value.ge
 const peutEvaluer = computed(() => {
   const b = briefSelection.value
   return !!b?.peut_evaluer && promotions.value.find((p) => p.id === b.promotion)?.actif !== false
+    // jamais évalué, ou nouveau dépôt depuis la dernière évaluation
+    && peutEtreEvalue(evaluationSelection.value, historique.value)
 })
 
 // Commentaires des pairs sur le rendu affiché
