@@ -13,12 +13,28 @@ const STYLES = {
 
 export const styleEtat = (etat) => STYLES[etat] ?? STYLES.NON_RENDU
 
-/** État d'un rendu à partir de sa dernière évaluation (ou null) et de ses dépôts. */
-export const etatRendu = (derniere, aDesDepots) => {
-  if (!derniere) return aDesDepots ? 'A_EVALUER' : 'NON_RENDU'
+/**
+ * État d'un rendu à partir de sa dernière évaluation (ou null) et de ses
+ * dépôts ({ date_depot }). Un dépôt postérieur à l'évaluation est à réévaluer.
+ */
+export const etatRendu = (derniere, depots = []) => {
+  if (!derniere) return depots.length ? 'A_EVALUER' : 'NON_RENDU'
+  const evaluee = new Date(derniere.date_creation)
+  if (depots.some((d) => new Date(d.date_depot) > evaluee)) return 'A_EVALUER'
   if (!derniere.competences.length) return 'EVALUE'
   return derniere.competences.every((c) => c.acquis) ? 'VALIDE' : 'NON_VALIDE'
 }
+
+/**
+ * Le formateur peut (ré)évaluer : jamais évalué, ou nouveau dépôt depuis
+ * la dernière évaluation (celle-ci n'avait donc pas tout validé).
+ */
+export const peutEtreEvalue = (derniere, depots = []) =>
+  !derniere || etatRendu(derniere, depots) === 'A_EVALUER'
+
+/** Rendu terminé : tout est acquis (ou évalué sans compétence visée), plus de dépôt. */
+export const estTermine = (derniere, depots = []) =>
+  ['VALIDE', 'EVALUE'].includes(etatRendu(derniere, depots))
 
 /** Dernière évaluation de chaque assignation (l'API les renvoie de la plus récente à la plus ancienne). */
 export const dernieresParAssignation = (evaluations) => {

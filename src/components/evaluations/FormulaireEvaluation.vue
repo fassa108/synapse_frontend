@@ -4,7 +4,9 @@
  *
  * Une ligne par compétence visée (Acquis / Non acquis) et un commentaire
  * général.
- * - Déjà acquis lors de la précédente évaluation : verrouillé (définitif).
+ * - Réévaluation (après un nouveau dépôt) : seules les compétences pas encore
+ *   acquises sont évaluées ; les acquises sont listées à part (définitif) et
+ *   reprises par le backend.
  * - Aucun dépôt : tout est « non acquis ».
  *
  * Props :
@@ -15,7 +17,7 @@
  *
  * Émet : fermer, evalue (évaluation créée)
  */
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AppButton from '../ui/AppButton.vue'
 import InfoBanner from '../ui/InfoBanner.vue'
 import { useAuthStore } from '../../stores/auth'
@@ -51,6 +53,10 @@ watch(() => props.cible, (c) => {
   erreur.value = ''
 }, { immediate: true })
 
+// Réévaluation : seulement ce qui n'est pas encore acquis
+const aEvaluer = computed(() => lignes.value.filter((l) => !l.verrouille))
+const dejaAcquises = computed(() => lignes.value.filter((l) => l.verrouille))
+
 const envoyer = async () => {
   envoi.value = true
   erreur.value = ''
@@ -58,7 +64,7 @@ const envoyer = async () => {
     const evaluation = await evaluer(authStore.tenantCourant?.id, {
       assignation: props.cible.assignation,
       commentaire: commentaire.value,
-      competences: lignes.value.map((l) => ({
+      competences: aEvaluer.value.map((l) => ({
         competence_niveau: l.id,
         acquis: l.acquis,
       })),
@@ -106,7 +112,11 @@ const envoyer = async () => {
             Ce brief ne vise aucune compétence : laissez simplement un commentaire.
           </p>
 
-          <div v-for="l in lignes" :key="l.id" class="rounded-xl border border-slate-200 px-4 py-3">
+          <p v-if="dejaAcquises.length" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-600">
+            Réévaluation du nouveau dépôt : seules les compétences pas encore acquises sont à évaluer.
+          </p>
+
+          <div v-for="l in aEvaluer" :key="l.id" class="rounded-xl border border-slate-200 px-4 py-3">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="min-w-0 flex-1 font-['Plus_Jakarta_Sans']">
                 <p class="text-sm font-semibold text-gray-900">{{ l.competence }}</p>
@@ -139,9 +149,17 @@ const envoyer = async () => {
                 </button>
               </div>
             </div>
-            <p v-if="l.verrouille" class="mt-2 font-['Plus_Jakarta_Sans'] text-xs text-emerald-700">
-              <i class="fa-solid fa-lock mr-1"></i>Acquis lors de la précédente évaluation : c'est définitif.
+          </div>
+
+          <div v-if="dejaAcquises.length" class="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
+            <p class="mb-2 font-['Plus_Jakarta_Sans'] text-xs font-semibold text-emerald-800">
+              <i class="fa-solid fa-lock mr-1"></i>Déjà acquis (définitif)
             </p>
+            <ul class="flex flex-col gap-1 font-['Plus_Jakarta_Sans'] text-sm text-zinc-700">
+              <li v-for="l in dejaAcquises" :key="l.id">
+                <i class="fa-solid fa-check mr-1.5 text-xs text-emerald-600"></i>{{ l.competence }} <span class="text-xs text-zinc-500">· Niveau {{ l.niveau }}</span>
+              </li>
+            </ul>
           </div>
 
           <div class="flex flex-col gap-2">

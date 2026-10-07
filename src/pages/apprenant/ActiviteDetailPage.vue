@@ -17,7 +17,7 @@ import FormulaireDepot from '../../components/livrables/FormulaireDepot.vue'
 import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue'
 import EvaluationCarte from '../../components/evaluations/EvaluationCarte.vue'
 import CommentairesRendu from '../../components/commentaires/CommentairesRendu.vue'
-import { styleEtat, etatRendu } from '../../utils/evaluation'
+import { styleEtat, etatRendu, estTermine } from '../../utils/evaluation'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
 import {
@@ -99,7 +99,7 @@ const estAssigne = computed(() => assignations.value.length > 0)
 const peutEchanger = computed(() => brief.value?.statut === 'PUBLIE' && mesDepots.value.length > 0)
 
 const derniereEvaluation = computed(() => evaluations.value[0] ?? null)
-const etatEvaluation = computed(() => styleEtat(etatRendu(derniereEvaluation.value, mesDepots.value.length > 0)))
+const etatEvaluation = computed(() => styleEtat(etatRendu(derniereEvaluation.value, mesDepots.value)))
 // Un apprenant n'est assigné qu'une fois à un brief (directement ou via un groupe)
 const monAssignation = computed(() => assignations.value[0] ?? null)
 
@@ -116,6 +116,9 @@ const maintenant = new Date()
 const etatDepot = computed(() => {
   if (!brief.value) return null
   if (brief.value.statut === 'ARCHIVE') return { ouvert: false, message: 'Ce brief est archivé : les dépôts sont fermés.' }
+  if (estTermine(derniereEvaluation.value, mesDepots.value)) {
+    return { ouvert: false, message: "Ce rendu est validé : il n'est plus possible de déposer." }
+  }
   if (new Date(brief.value.date_debut) > maintenant) {
     return { ouvert: false, message: `Les dépôts ouvrent le ${formatDate(brief.value.date_debut)}.` }
   }

@@ -22,7 +22,7 @@ import VisionneuseFichier from '../../components/fichiers/VisionneuseFichier.vue
 import EvaluationCarte from '../../components/evaluations/EvaluationCarte.vue'
 import FormulaireEvaluation from '../../components/evaluations/FormulaireEvaluation.vue'
 import CommentairesRendu from '../../components/commentaires/CommentairesRendu.vue'
-import { styleEtat, etatRendu, dernieresParAssignation } from '../../utils/evaluation'
+import { styleEtat, etatRendu, dernieresParAssignation, peutEtreEvalue } from '../../utils/evaluation'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
 import {
@@ -284,7 +284,9 @@ const commentairesDe = (assignationId) => commentaires.value.filter((c) => c.ass
 // ─── Évaluation ───────────────────────────────────────────────────────────────
 const dernieres = computed(() => dernieresParAssignation(evaluations.value))
 const etat = (assignationId) =>
-  styleEtat(etatRendu(dernieres.value.get(assignationId), depotsDe(assignationId).length > 0))
+  styleEtat(etatRendu(dernieres.value.get(assignationId), depotsDe(assignationId)))
+// (Ré)évaluation : jamais évalué, ou nouveau dépôt depuis la dernière évaluation
+const evaluable = (assignationId) => peutEtreEvalue(dernieres.value.get(assignationId), depotsDe(assignationId))
 const peutEvaluer = computed(() => brief.value?.peut_evaluer && promotion.value?.actif && brief.value?.statut !== 'BROUILLON')
 
 const aEvaluer = ref(null) // { assignation, nom }
@@ -547,7 +549,7 @@ const formatDate = (iso) =>
                       <i class="fa-solid fa-chevron-down ml-1 text-[10px] transition" :class="{ 'rotate-180': ouvertes.has(a.id) }"></i>
                     </button>
                     <AppButton
-                      v-if="peutEvaluer"
+                      v-if="peutEvaluer && evaluable(a.id)"
                       variant="secondary"
                       icon="fa-solid fa-clipboard-check"
                       @click="ouvrirEvaluation(a)"
