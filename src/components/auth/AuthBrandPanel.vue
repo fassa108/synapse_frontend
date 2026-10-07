@@ -22,8 +22,8 @@ const fond = {
 
       <!-- Slogan -->
       <p class="mt-3 max-w-96 px-6 font-['Plus_Jakarta_Sans'] text-base font-bold leading-6 lg:mt-8 lg:text-2xl lg:leading-8">
-        L'excellence pédagogique au<br />
-        service de votre avenir
+        L'excellence pédagogique <br />
+        au service de votre avenir
       </p>
     </div>
   </section>
