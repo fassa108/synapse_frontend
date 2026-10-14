@@ -27,5 +27,14 @@ export const depuis = (iso) => {
   return `il y a ${jours} j`
 }
 
+// Fil des notifications : « à l'instant », « il y a 5 min », « il y a 2 h », puis en jours
+export const ilYa = (iso) => {
+  const minutes = Math.floor((Date.now() - new Date(iso)) / 60000)
+  if (minutes < 1) return "à l'instant"
+  if (minutes < 60) return `il y a ${minutes} min`
+  if (minutes < 24 * 60) return `il y a ${Math.floor(minutes / 60)} h`
+  return depuis(iso)
+}
+
 export const dateCourte = (iso) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—'

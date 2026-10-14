@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useSidebar } from '../../composables/useSidebar'
+import NotificationsMenu from '../notifications/NotificationsMenu.vue'
 
 const props = defineProps({
   prenom: { type: String, default: '' },
@@ -53,6 +54,7 @@ const routeLabels = {
   organismes:  'Organismes',
   profil:      'Profil',
   parametres:  'Paramètres',
+  notifications: 'Notifications',
   detail:      'Détail',
 }
 
@@ -141,13 +143,7 @@ const initiales = computed(() => {
       <div class="hidden h-5 w-px bg-slate-200 md:block"></div>
 
       <!-- Notifications -->
-      <button
-        type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-slate-100"
-        aria-label="Notifications"
-      >
-        <i class="fa-solid fa-bell text-sm"></i>
-      </button>
+      <NotificationsMenu />
 
       <!-- Utilisateur -->
       <div class="flex items-center gap-2">

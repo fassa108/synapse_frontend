@@ -196,6 +196,12 @@ const routes = [
     component: () => import('../pages/shared/ParametresPage.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/notifications',
+    name: 'notifications',
+    component: () => import('../pages/shared/NotificationsPage.vue'),
+    meta: { requiresAuth: true },
+  },
 
   // ─── Formateur ─────────────────────────────────────────────────────────────
   {
