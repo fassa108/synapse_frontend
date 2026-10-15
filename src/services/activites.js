@@ -209,6 +209,10 @@ export const partagerAnalyseAccompagnement = (tenantId, id) =>
 export const getTableauDeBord = (tenantId, role) =>
   api.get(`tenants/${tenantId}/tableau-de-bord/${role}/`).then((r) => r.data)
 
+// Formateur : sa propre activité (page Mon activité)
+export const getActiviteFormateur = (tenantId) =>
+  api.get(`tenants/${tenantId}/tableau-de-bord/formateur/activite/`).then((r) => r.data)
+
 // ─── Feedback entre pairs ─────────────────────────────────────────────────────
 
 export const getCommentaires = (tenantId, params = {}) =>

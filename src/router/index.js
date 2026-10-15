@@ -211,6 +211,12 @@ const routes = [
     meta: { requiresAuth: true, roles: ['FORMATEUR'] },
   },
   {
+    path: '/mon-activite',
+    name: 'mon-activite',
+    component: () => import('../pages/formateur/MonActivitePage.vue'),
+    meta: { requiresAuth: true, roles: ['FORMATEUR'] },
+  },
+  {
     path: '/briefs',
     name: 'briefs',
     component: () => import('../pages/shared/BriefsPage.vue'),
