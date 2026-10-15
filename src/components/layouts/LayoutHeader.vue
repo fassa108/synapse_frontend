@@ -55,6 +55,7 @@ const routeLabels = {
   profil:      'Profil',
   parametres:  'Paramètres',
   notifications: 'Notifications',
+  'mon-activite': 'Mon activité',
   detail:      'Détail',
 }
 

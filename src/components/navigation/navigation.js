@@ -113,6 +113,11 @@ export const navigationByRole = {
       icon: 'fa-solid fa-brain',
       to: '/revision',
     },
+    {
+      label: 'Mon activité',
+      icon: 'fa-solid fa-calendar-days',
+      to: '/mon-activite',
+    },
   ],
 
   APPRENANT: [
