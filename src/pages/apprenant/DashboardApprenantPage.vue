@@ -11,6 +11,7 @@ import AppLayout from '../../components/layouts/AppLayout.vue'
 import StatCard from '../../components/dashboard/StatCard.vue'
 import Panneau from '../../components/dashboard/Panneau.vue'
 import JaugeProgression from '../../components/progression/JaugeProgression.vue'
+import PlanPartage from '../../components/decrochage/PlanPartage.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import { useAuthStore } from '../../stores/auth'
 import { getTableauDeBord } from '../../services/activites'
@@ -104,6 +105,8 @@ const couleurEcheance = (b) => {
           <StatCard label="Dernier quiz" :value="dernierQuiz" :aide="ind.dernier_quiz?.titre || 'Aucun quiz passé'" icon="fa-solid fa-brain"
             icon-background="bg-violet-50" icon-color="text-violet-600" to="/mes-revisions" />
         </div>
+
+        <PlanPartage class="mt-6" :tenant-id="authStore.tenantCourant.id" />
 
         <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
           <!-- Progression -->

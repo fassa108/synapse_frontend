@@ -189,6 +189,20 @@ export const getProgressionApprenant = (tenantId, apprenantId) =>
 export const getMaProgression = (tenantId) =>
   api.get(`tenants/${tenantId}/progression/moi/`).then((r) => r.data)
 
+// ─── Accompagnement (analyses IA du décrochage) ───────────────────────────────
+
+// Formateur / admin : analyses complètes ; apprenant : plans partagés seulement
+export const getAnalysesAccompagnement = (tenantId, params = {}) =>
+  api.get(`tenants/${tenantId}/analyses-accompagnement/`, { params }).then((r) => r.data)
+
+export const demanderAnalyseAccompagnement = (tenantId, apprenantId, promotionId) =>
+  api
+    .post(`tenants/${tenantId}/analyses-accompagnement/`, { apprenant: apprenantId, promotion: promotionId })
+    .then((r) => r.data)
+
+export const partagerAnalyseAccompagnement = (tenantId, id) =>
+  api.post(`tenants/${tenantId}/analyses-accompagnement/${id}/partager/`).then((r) => r.data)
+
 // ─── Tableaux de bord ─────────────────────────────────────────────────────────
 
 // role : 'formateur' | 'admin' | 'apprenant' (une route par rôle, tout en un appel)

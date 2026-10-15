@@ -41,7 +41,12 @@ const attention = computed(() => donnees.value?.attention)
 const nbPointsAttention = computed(() => {
   const a = attention.value
   if (!a) return 0
-  return a.invitations_en_attente + a.promotions_sans_formateur.length + (a.rendus_en_attente_longue ? 1 : 0)
+  return (
+    a.invitations_en_attente +
+    a.promotions_sans_formateur.length +
+    (a.rendus_en_attente_longue ? 1 : 0) +
+    (a.apprenants_a_risque ? 1 : 0)
+  )
 })
 
 // ─── Graphique : activité des 14 derniers jours ──────────────────────────────
@@ -191,6 +196,14 @@ const libelleRole = { ADMINISTRATEUR: 'Administrateur', FORMATEUR: 'Formateur', 
                 </p>
                 <RouterLink to="/suivi-livrables" class="text-xs text-indigo-600 hover:underline">Voir les livrables</RouterLink>
               </div>
+
+              <div v-if="attention.apprenants_a_risque">
+                <p class="text-sm font-semibold text-gray-900">
+                  <i class="fa-solid fa-user-clock mr-1.5 text-rose-500"></i>
+                  {{ attention.apprenants_a_risque }} apprenant{{ attention.apprenants_a_risque > 1 ? 's' : '' }} à risque de décrochage
+                </p>
+                <RouterLink to="/progression" class="text-xs text-indigo-600 hover:underline">Voir la progression</RouterLink>
+              </div>
             </div>
           </Panneau>
         </div>
@@ -216,6 +229,7 @@ const libelleRole = { ADMINISTRATEUR: 'Administrateur', FORMATEUR: 'Formateur', 
                     {{ p.nb_apprenants }} apprenant{{ p.nb_apprenants !== 1 ? 's' : '' }}
                     · {{ p.nb_formateurs }} formateur{{ p.nb_formateurs !== 1 ? 's' : '' }}
                     <span v-if="p.a_evaluer" class="text-amber-700">· {{ p.a_evaluer }} à évaluer</span>
+                    <span v-if="p.a_risque" class="text-rose-600">· {{ p.a_risque }} à risque</span>
                   </p>
                 </RouterLink>
               </li>

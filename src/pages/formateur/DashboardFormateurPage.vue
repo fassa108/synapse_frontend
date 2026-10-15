@@ -12,6 +12,7 @@ import Panneau from '../../components/dashboard/Panneau.vue'
 import Graphique from '../../components/progression/Graphique.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import SignalementDecrochage from '../../components/decrochage/SignalementDecrochage.vue'
 import { useAuthStore } from '../../stores/auth'
 import { getTableauDeBord } from '../../services/activites'
 import { depuis, echeanceRelative, joursJusqua } from '../../utils/dates'
@@ -42,8 +43,8 @@ const accroche = computed(() => {
   if (!donnees.value) return ''
   const n = ind.value.a_evaluer
   if (n > 0) return `${n} rendu${n > 1 ? 's attendent' : ' attend'} votre évaluation.`
-  const retards = donnees.value.apprenants_a_suivre.length
-  if (retards > 0) return `Tout est évalué. ${retards} apprenant${retards > 1 ? 's ont' : ' a'} des briefs en retard.`
+  const signales = donnees.value.apprenants_a_suivre.length
+  if (signales > 0) return `Tout est évalué. ${signales} apprenant${signales > 1 ? 's sont' : ' est'} à suivre.`
   return 'Tout est à jour : aucun rendu en attente.'
 })
 
@@ -235,23 +236,29 @@ const pourcent = (a, b) => (b ? Math.round((100 * a) / b) : 0)
           <Panneau
             titre="Apprenants à suivre"
             :vide="donnees.apprenants_a_suivre.length === 0"
-            message-vide="Aucun apprenant en retard."
+            message-vide="Aucun apprenant en difficulté."
           >
-            <ul class="flex flex-col gap-3">
-              <li v-for="a in donnees.apprenants_a_suivre" :key="`${a.id}-${a.promotion}`">
+            <ul class="flex flex-col gap-4">
+              <li v-for="a in donnees.apprenants_a_suivre" :key="`${a.id}-${a.promotion_id}`">
                 <button type="button" class="w-full text-left" @click="router.push(`/progression/${a.id}`)">
                   <div class="flex items-baseline justify-between gap-2">
                     <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">{{ a.nom }}</p>
-                    <span class="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold text-rose-600">
-                      {{ a.briefs_non_rendus }} non rendu{{ a.briefs_non_rendus > 1 ? 's' : '' }}
-                    </span>
+                    <span class="shrink-0 font-['Plus_Jakarta_Sans'] text-[11px] text-zinc-400">{{ a.promotion }}</span>
                   </div>
+                  <SignalementDecrochage class="mt-1.5" :niveau="a.niveau" :signaux="a.signaux" />
                   <div class="mt-1.5 flex items-center gap-2">
                     <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div class="h-full rounded-full bg-emerald-500" :style="{ width: `${a.competences_pct}%` }"></div>
                     </div>
                     <span class="shrink-0 font-['Plus_Jakarta_Sans'] text-[11px] text-zinc-500">{{ a.competences_pct }} % compétences</span>
                   </div>
+                </button>
+                <button
+                  type="button"
+                  class="mt-2 inline-flex items-center gap-1.5 font-['Plus_Jakarta_Sans'] text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                  @click="router.push({ path: `/progression/${a.id}`, hash: '#accompagnement' })"
+                >
+                  <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i>Analyser avec l'IA
                 </button>
               </li>
             </ul>
