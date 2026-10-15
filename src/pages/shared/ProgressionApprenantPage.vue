@@ -3,13 +3,14 @@
  * ProgressionApprenantPage — Formateur / Admin : progression détaillée
  * d'un apprenant (compétences, briefs).
  */
-import { ref, onMounted } from 'vue'
+import { nextTick, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import ProgressionDetail from '../../components/progression/ProgressionDetail.vue'
+import AccompagnementPanel from '../../components/decrochage/AccompagnementPanel.vue'
 import { useAuthStore } from '../../stores/auth'
 import { getProgressionApprenant } from '../../services/activites'
 
@@ -27,6 +28,11 @@ onMounted(async () => {
     error.value = 'Progression introuvable.'
   } finally {
     loading.value = false
+  }
+  // Lien « Analyser avec l'IA » du tableau de bord : aller au bloc Accompagnement
+  if (route.hash === '#accompagnement') {
+    await nextTick()
+    document.getElementById('accompagnement')?.scrollIntoView({ behavior: 'smooth' })
   }
 })
 
@@ -50,7 +56,16 @@ const retour = () => {
         <i class="fa-solid fa-circle-notch animate-spin text-2xl"></i>
       </div>
       <InfoBanner v-else-if="error" variant="error" :message="error" class="mt-4" />
-      <ProgressionDetail v-else class="mt-6" :progression="progression" :lien-brief="(id) => `/briefs/${id}`" />
+      <template v-else>
+        <AccompagnementPanel
+          class="mt-6"
+          :tenant-id="authStore.tenantCourant.id"
+          :apprenant-id="progression.apprenant.id"
+          :promotion="progression.promotion"
+          :decrochage="progression.decrochage"
+        />
+        <ProgressionDetail class="mt-6" :progression="progression" :lien-brief="(id) => `/briefs/${id}`" />
+      </template>
     </div>
   </AppLayout>
 </template>

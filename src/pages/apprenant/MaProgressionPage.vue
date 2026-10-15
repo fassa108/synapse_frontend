@@ -8,6 +8,7 @@ import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import ProgressionDetail from '../../components/progression/ProgressionDetail.vue'
+import PlanPartage from '../../components/decrochage/PlanPartage.vue'
 import { useAuthStore } from '../../stores/auth'
 import { getMaProgression } from '../../services/activites'
 
@@ -40,7 +41,10 @@ onMounted(async () => {
         <i class="fa-solid fa-circle-notch animate-spin text-2xl"></i>
       </div>
       <InfoBanner v-else-if="error" variant="info" :message="error" class="mt-4" />
-      <ProgressionDetail v-else class="mt-6" :progression="progression" :lien-brief="(id) => `/activites/${id}`" />
+      <template v-else>
+        <PlanPartage class="mt-6" :tenant-id="authStore.tenantCourant.id" />
+        <ProgressionDetail class="mt-6" :progression="progression" :lien-brief="(id) => `/activites/${id}`" />
+      </template>
     </div>
   </AppLayout>
 </template>
