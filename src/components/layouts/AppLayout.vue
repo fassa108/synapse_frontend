@@ -3,6 +3,7 @@ import { computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Sidebar from './Sidebar.vue'
 import LayoutHeader from './LayoutHeader.vue'
+import AssistantFlottant from '../assistant/AssistantFlottant.vue'
 import { useAuthStore } from '../../stores/auth'
 import { useSidebar } from '../../composables/useSidebar'
 
@@ -70,5 +71,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', surTouche))
         <slot />
       </main>
     </div>
+
+    <!-- Assistant pédagogique : apprenants seulement -->
+    <AssistantFlottant v-if="role === 'APPRENANT' && authStore.tenantCourant" />
   </div>
 </template>
