@@ -11,6 +11,7 @@ import AppLayout from '../../components/layouts/AppLayout.vue'
 import StatCard from '../../components/dashboard/StatCard.vue'
 import Panneau from '../../components/dashboard/Panneau.vue'
 import JaugeProgression from '../../components/progression/JaugeProgression.vue'
+import CourbeEvolution from '../../components/progression/CourbeEvolution.vue'
 import PlanPartage from '../../components/decrochage/PlanPartage.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import { useAuthStore } from '../../stores/auth'
@@ -172,6 +173,13 @@ const couleurEcheance = (b) => {
             </ul>
           </Panneau>
         </div>
+
+        <Panneau class="mt-4" titre="Mon évolution" lien="/ma-progression" libelle-lien="Ma progression">
+          <CourbeEvolution
+            :series="[{ label: 'Compétences acquises', points: donnees.evolution, couleur: '#10b981' }]"
+            hauteur="12rem"
+          />
+        </Panneau>
 
         <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
           <!-- Évaluations récentes -->

@@ -10,6 +10,7 @@ import AppLayout from '../../components/layouts/AppLayout.vue'
 import StatCard from '../../components/dashboard/StatCard.vue'
 import Panneau from '../../components/dashboard/Panneau.vue'
 import Graphique from '../../components/progression/Graphique.vue'
+import CourbeEvolution from '../../components/progression/CourbeEvolution.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import SignalementDecrochage from '../../components/decrochage/SignalementDecrochage.vue'
@@ -79,6 +80,13 @@ const optionsSuivi = {
   },
 }
 const hauteurSuivi = computed(() => `${Math.max(160, suivi.value.length * 40 + 70)}px`)
+
+// ─── Courbes : compétences acquises par promotion ouverte ────────────────────
+const seriesEvolution = computed(() =>
+  (donnees.value?.promotions ?? [])
+    .filter((p) => p.actif && p.evolution.length)
+    .map((p) => ({ label: p.nom, points: p.evolution })),
+)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const nomCible = (c) => (c.type === 'groupe' ? `Groupe ${c.nom}` : c.nom)
@@ -264,6 +272,15 @@ const pourcent = (a, b) => (b ? Math.round((100 * a) / b) : 0)
             </ul>
           </Panneau>
         </div>
+
+        <Panneau
+          v-if="seriesEvolution.length"
+          class="mt-4"
+          titre="Évolution de mes promotions"
+        >
+          <p class="-mt-2 mb-3 font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Moyenne des compétences acquises, semaine après semaine.</p>
+          <CourbeEvolution :series="seriesEvolution" />
+        </Panneau>
 
         <!-- Mes promotions -->
         <section class="mt-6">
