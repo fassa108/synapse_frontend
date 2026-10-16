@@ -8,6 +8,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
+import { useAssistant } from '../../composables/useAssistant'
 import AppButton from '../../components/ui/AppButton.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
@@ -37,6 +38,7 @@ const router    = useRouter()
 const authStore = useAuthStore()
 const tenantId  = authStore.tenantCourant?.id
 const briefId   = route.params.id
+const { ouvrirPourBrief } = useAssistant()
 
 const brief        = ref(null)
 const module_      = ref(null)
@@ -176,6 +178,14 @@ const formatDate = (iso) =>
           :description="[categorie?.nom, module_ ? `Module : ${module_.nom}` : ''].filter(Boolean).join(' · ')"
         >
           <template #actions>
+            <AppButton
+              v-if="estAssigne"
+              variant="secondary"
+              icon="fa-solid fa-wand-magic-sparkles"
+              @click="ouvrirPourBrief(brief)"
+            >
+              Poser une question sur ce brief
+            </AppButton>
             <AppButton variant="secondary" icon="fa-solid fa-arrow-left" @click="router.push('/activites')">Mes activités</AppButton>
           </template>
         </PageHeader>
