@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
@@ -12,9 +12,14 @@ import { useAuthStore } from '../../stores/auth'
 import { creerPromotion, getFormations } from '../../services/pedagogie'
 import { getMembres } from '../../services/membres'
 
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const tenantId = authStore.tenantCourant?.id
+
+// Depuis la fiche d'une formation (?formation=) : formation présélectionnée, retour vers la fiche
+const formationDepuis = route.query.formation ? String(route.query.formation) : ''
+const retour = () => router.push(formationDepuis ? `/formations/${formationDepuis}` : '/promotions')
 
 const formations = ref([])
 const formationOptions = ref([])
@@ -53,6 +58,9 @@ onMounted(async () => {
       value: String(f.id),
       label: f.nom,
     }))
+    if (formationOptions.value.some((o) => o.value === formationDepuis)) {
+      form.value.formation = formationDepuis
+    }
   } catch {
     globalError.value = 'Impossible de charger les formations.'
   } finally {
@@ -128,7 +136,7 @@ const handleSubmit = async () => {
           <AppButton
             variant="secondary"
             icon="fa-solid fa-arrow-left"
-            @click="router.push('/promotions')"
+            @click="retour"
           >
             Retour
           </AppButton>
@@ -225,7 +233,7 @@ const handleSubmit = async () => {
             </FormField>
 
             <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
-              <AppButton type="button" variant="secondary" @click="router.push('/promotions')" :disabled="loading">
+              <AppButton type="button" variant="secondary" @click="retour" :disabled="loading">
                 Annuler
               </AppButton>
               <AppButton type="submit" variant="primary" :loading="loading">
