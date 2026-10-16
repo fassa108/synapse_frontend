@@ -7,11 +7,13 @@
  * - Briefs assignés et leur état (validé, non validé, à évaluer…)
  *
  * Props :
- *   - progression : réponse de l'API (resume, modules, briefs)
+ *   - progression : réponse de l'API (resume, modules, briefs, evolution ; evolution_promotion pour
+ *                   le formateur et l'admin)
  *   - lienBrief   : (id) => route vers le brief (selon le rôle)
  */
 import { computed } from 'vue'
 import JaugeProgression from './JaugeProgression.vue'
+import CourbeEvolution from './CourbeEvolution.vue'
 import { styleEtat } from '../../utils/evaluation'
 
 const props = defineProps({
@@ -20,6 +22,14 @@ const props = defineProps({
 })
 
 const r = computed(() => props.progression.resume)
+
+// Sa courbe, et la moyenne de la promotion en pointillés quand elle est fournie
+const series = computed(() => [
+  { label: 'Compétences acquises', points: props.progression.evolution ?? [], couleur: '#10b981' },
+  ...(props.progression.evolution_promotion
+    ? [{ label: 'Moyenne de la promotion', points: props.progression.evolution_promotion, couleur: '#94a3b8', pointilles: true }]
+    : []),
+])
 
 const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('fr-FR') : '')
 
@@ -35,6 +45,12 @@ const valideesDuModule = (m) => {
       <JaugeProgression titre="Compétences validées" :valeur="r.competences_validees" :total="r.competences_total" couleur="#10b981" />
       <JaugeProgression titre="Briefs validés" :valeur="r.briefs_valides" :total="r.briefs_total" couleur="#6366f1" />
     </div>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 class="mb-1 font-['Sora'] text-base font-semibold text-gray-900">Évolution</h2>
+      <p class="mb-4 font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Part des compétences du référentiel acquises, semaine après semaine.</p>
+      <CourbeEvolution :series="series" hauteur="14rem" />
+    </section>
 
     <div class="grid gap-6 lg:grid-cols-5">
       <!-- Référentiel -->

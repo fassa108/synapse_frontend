@@ -317,7 +317,7 @@ const formatDate = (iso) =>
                   v-if="isAdmin"
                   variant="secondary"
                   icon="fa-solid fa-plus"
-                  @click="router.push('/promotions/creer')"
+                  @click="router.push({ path: '/promotions/creer', query: { formation: formationId } })"
                 >
                   Ajouter
                 </AppButton>
