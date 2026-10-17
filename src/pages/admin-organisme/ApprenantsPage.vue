@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
+import BoutonExportMembres from '../../components/rapports/BoutonExportMembres.vue'
 import SearchInput from '../../components/ui/SearchInput.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import AppPagination from '../../components/ui/AppPagination.vue'
@@ -139,6 +140,7 @@ const nomApprenant = (m) =>
 
       <PageHeader titre="Apprenants" description="Gérez les apprenants de votre organisme.">
         <template #actions>
+          <BoutonExportMembres />
           <AppButton variant="primary" icon="fa-solid fa-user-plus" @click="showModal = true">
             Ajouter un apprenant
           </AppButton>

@@ -6,8 +6,9 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
+import AppSelect from '../../components/ui/AppSelect.vue'
 import { useAuthStore } from '../../stores/auth'
-import { getMembres } from '../../services/membres'
+import { getMembres, modifierMembre } from '../../services/membres'
 import { getPromotions, getGroupes, getInscriptions } from '../../services/pedagogie'
 
 const route  = useRoute()
@@ -22,6 +23,25 @@ const promotionActive = ref(null)
 const groupes         = ref([])
 const loading         = ref(true)
 const error           = ref('')
+
+// Genre (admin) : facultatif, sert aux statistiques femmes / hommes des rapports
+const GENRES = [
+  { value: 'F', label: 'Femme' },
+  { value: 'H', label: 'Homme' },
+]
+const genreEnregistre = ref(false)
+const changerGenre = async (genre) => {
+  const precedent = membre.value.utilisateur_genre
+  membre.value.utilisateur_genre = genre
+  genreEnregistre.value = false
+  try {
+    await modifierMembre(tenantId, membre.value.id, { utilisateur_genre: genre })
+    genreEnregistre.value = true
+  } catch {
+    membre.value.utilisateur_genre = precedent
+    error.value = "Le genre n'a pas pu être enregistré."
+  }
+}
 
 onMounted(async () => {
   try {
@@ -144,6 +164,21 @@ const initiales = (m) =>
                 <div>
                   <dt class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Inscrit le</dt>
                   <dd class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-700">{{ formatDate(membre.date_ajout) }}</dd>
+                </div>
+                <div v-if="isAdmin">
+                  <dt class="mb-1 font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
+                    Genre
+                    <span v-if="genreEnregistre" class="ml-1 text-emerald-600"><i class="fa-solid fa-check"></i> enregistré</span>
+                  </dt>
+                  <dd>
+                    <AppSelect
+                      :model-value="membre.utilisateur_genre ?? ''"
+                      :options="GENRES"
+                      placeholder="Non renseigné"
+                      placeholder-selectable
+                      @update:model-value="changerGenre"
+                    />
+                  </dd>
                 </div>
               </dl>
             </div>

@@ -41,6 +41,11 @@ export const navigationByRole = {
       to: '/progression',
     },
     {
+      label: 'Rapports',
+      icon: 'fa-solid fa-file-lines',
+      to: '/rapports',
+    },
+    {
       label: 'Ressources',
       icon: 'fa-solid fa-folder-open',
       to: '/ressources',
@@ -109,6 +114,11 @@ export const navigationByRole = {
       to: '/progression',
     },
     {
+      label: 'Rapports',
+      icon: 'fa-solid fa-file-lines',
+      to: '/rapports',
+    },
+    {
       label: 'Ressources',
       icon: 'fa-solid fa-folder-open',
       to: '/ressources',
@@ -150,6 +160,11 @@ export const navigationByRole = {
       label: 'Ma progression',
       icon: 'fa-solid fa-chart-simple',
       to: '/ma-progression',
+    },
+    {
+      label: 'Mes bilans',
+      icon: 'fa-solid fa-file-lines',
+      to: '/rapports',
     },
     {
       label: 'Ma formation',

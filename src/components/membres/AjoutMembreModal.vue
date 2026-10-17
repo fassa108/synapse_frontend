@@ -19,6 +19,7 @@ import { reactive, ref } from 'vue'
 import AppButton from '../ui/AppButton.vue'
 import FormField from '../ui/FormField.vue'
 import TextInput from '../ui/TextInput.vue'
+import AppSelect from '../ui/AppSelect.vue'
 import InfoBanner from '../ui/InfoBanner.vue'
 import { inviterMembre } from '../../services/membres'
 import { useFormulaire } from '../../composables/useFormulaire'
@@ -32,7 +33,13 @@ const props = defineProps({
 
 const emit = defineEmits(['fermer', 'ajoute'])
 
-const form = reactive({ prenom: '', nom: '', email: '' })
+const form = reactive({ prenom: '', nom: '', email: '', genre: '' })
+
+// Facultatif : sert aux statistiques femmes / hommes des rapports
+const GENRES = [
+  { value: 'F', label: 'Femme' },
+  { value: 'H', label: 'Homme' },
+]
 const chargement = ref(false)
 const erreurGenerale = ref('')
 const succes = ref('')
@@ -86,7 +93,7 @@ const ajouter = async () => {
 
 // « Ajouter un autre » : on repart d'un formulaire vierge
 const recommencer = () => {
-  Object.assign(form, { prenom: '', nom: '', email: '' })
+  Object.assign(form, { prenom: '', nom: '', email: '', genre: '' })
   succes.value = ''
 }
 </script>
@@ -148,6 +155,16 @@ const recommencer = () => {
             <p class="-mt-2 font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
               Prénom et nom sont obligatoires pour un nouveau compte.
             </p>
+
+            <FormField label="Genre" hint="Facultatif : utilisé pour les statistiques femmes / hommes des rapports.">
+              <AppSelect
+                v-model="form.genre"
+                :options="GENRES"
+                placeholder="Non renseigné"
+                placeholder-selectable
+                :disabled="chargement"
+              />
+            </FormField>
 
             <InfoBanner
               v-if="role === 'APPRENANT'"
