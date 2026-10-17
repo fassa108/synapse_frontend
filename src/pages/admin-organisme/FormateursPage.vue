@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
+import BoutonExportMembres from '../../components/rapports/BoutonExportMembres.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import AppPagination from '../../components/ui/AppPagination.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
@@ -92,6 +93,7 @@ const nomFormateur = (m) =>
         description="Gérez les formateurs de votre organisme."
       >
         <template #actions>
+          <BoutonExportMembres />
           <AppButton variant="primary" icon="fa-solid fa-user-plus" @click="showModal = true">
             Ajouter un formateur
           </AppButton>

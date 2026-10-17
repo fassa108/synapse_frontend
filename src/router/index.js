@@ -222,6 +222,18 @@ const routes = [
     component: () => import('../pages/shared/NotificationsPage.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/rapports',
+    name: 'rapports',
+    component: () => import('../pages/shared/RapportsPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR', 'APPRENANT'] },
+  },
+  {
+    path: '/rapports/:id',
+    name: 'rapport-detail',
+    component: () => import('../pages/shared/RapportDetailPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR', 'FORMATEUR', 'APPRENANT'] },
+  },
 
   // ─── Formateur ─────────────────────────────────────────────────────────────
   {

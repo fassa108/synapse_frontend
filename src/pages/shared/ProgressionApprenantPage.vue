@@ -11,6 +11,7 @@ import AppButton from '../../components/ui/AppButton.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import ProgressionDetail from '../../components/progression/ProgressionDetail.vue'
 import AccompagnementPanel from '../../components/decrochage/AccompagnementPanel.vue'
+import BoutonRapport from '../../components/rapports/BoutonRapport.vue'
 import { useAuthStore } from '../../stores/auth'
 import { getProgressionApprenant } from '../../services/activites'
 
@@ -20,6 +21,7 @@ const authStore   = useAuthStore()
 const progression = ref(null)
 const loading     = ref(true)
 const error       = ref('')
+const erreurRapport = ref('')
 
 onMounted(async () => {
   try {
@@ -49,9 +51,17 @@ const retour = () => {
         :description="progression ? `Promotion ${progression.promotion.nom}` : ''"
       >
         <template #actions>
+          <BoutonRapport
+            v-if="progression"
+            type="APPRENANT"
+            :promotion-id="progression.promotion.id"
+            :apprenant-id="progression.apprenant.id"
+            @erreur="(m) => (erreurRapport = m)"
+          />
           <AppButton variant="secondary" icon="fa-solid fa-arrow-left" @click="retour">Toute la promotion</AppButton>
         </template>
       </PageHeader>
+      <InfoBanner v-if="erreurRapport" variant="warning" :message="erreurRapport" class="mt-4" />
       <div v-if="loading" class="flex h-48 items-center justify-center text-zinc-400">
         <i class="fa-solid fa-circle-notch animate-spin text-2xl"></i>
       </div>

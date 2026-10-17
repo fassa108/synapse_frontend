@@ -25,6 +25,9 @@ import {
   rouvrirPromotion,
 } from '../../services/pedagogie'
 import { getMembres } from '../../services/membres'
+import BoutonRapport from '../../components/rapports/BoutonRapport.vue'
+import MenuExport from '../../components/rapports/MenuExport.vue'
+import { exporterProgression, exporterSuivi } from '../../services/rapports'
 
 const route   = useRoute()
 const router  = useRouter()
@@ -33,6 +36,22 @@ const tenantId    = authStore.tenantCourant?.id
 const promotionId = route.params.id
 
 const isAdmin = computed(() => authStore.role === 'ADMINISTRATEUR')
+
+// Exports Excel de la promotion (formateurs de la promotion et admin)
+const exports = [
+  {
+    label: 'Progression',
+    description: 'Progression par apprenant et compétences acquises',
+    icon: 'fa-solid fa-chart-simple',
+    action: () => exporterProgression(tenantId, promotionId),
+  },
+  {
+    label: 'Suivi des livrables',
+    description: 'Rendus, retards et évaluations, brief par brief',
+    icon: 'fa-solid fa-inbox',
+    action: () => exporterSuivi(tenantId, promotionId),
+  },
+]
 
 // Promotion clôturée : tout reste consultable, en lecture seule.
 const estOuverte = computed(() => promotion.value?.actif !== false)
@@ -410,6 +429,8 @@ const formatDate = (iso) =>
 
         <PageHeader :titre="promotion.nom">
           <template #actions>
+            <BoutonRapport type="PROMOTION" :promotion-id="promotion.id" @erreur="(m) => (pageWarning = m)" />
+            <MenuExport :elements="exports" />
             <AppButton
               v-if="isAdmin"
               :variant="estOuverte ? 'secondary' : 'primary'"
