@@ -130,7 +130,7 @@ const initiales = (a) =>
         <div class="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
 
           <!-- Informations -->
-          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-1">
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-1 lg:sticky lg:top-6 lg:self-start">
             <div class="mb-4 flex items-center justify-between">
               <h2 class="font-['Sora'] text-sm font-semibold text-gray-900">Informations</h2>
               <StatusBadge :value="organisme.statut" type="organisme" />

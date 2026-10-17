@@ -1,138 +1,52 @@
+// Menu par rôle. Une entrée { rubrique } ouvre un groupe de liens
+// (titre affiché dans la sidebar, simple séparateur quand elle est réduite).
 export const navigationByRole = {
   ADMINISTRATEUR: [
-    {
-      label: 'Dashboard',
-      icon: 'fa-solid fa-chart-line',
-      to: '/dashboard/admin',
-    },
-    {
-      label: 'Formations',
-      icon: 'fa-solid fa-book-open',
-      to: '/formations',
-    },
-    {
-      label: 'Promotions',
-      icon: 'fa-solid fa-users',
-      to: '/promotions',
-    },
-    {
-      label: 'Modules',
-      icon: 'fa-solid fa-layer-group',
-      to: '/modules',
-    },
-    {
-      label: 'Niveaux',
-      icon: 'fa-solid fa-stairs',
-      to: '/niveaux',
-    },
-    {
-      label: 'Briefs',
-      icon: 'fa-solid fa-clipboard',
-      to: '/briefs',
-    },
-    {
-      label: 'Livrables',
-      icon: 'fa-solid fa-inbox',
-      to: '/suivi-livrables',
-    },
-    {
-      label: 'Progression',
-      icon: 'fa-solid fa-chart-simple',
-      to: '/progression',
-    },
-    {
-      label: 'Rapports',
-      icon: 'fa-solid fa-file-lines',
-      to: '/rapports',
-    },
-    {
-      label: 'Ressources',
-      icon: 'fa-solid fa-folder-open',
-      to: '/ressources',
-    },
-    {
-      label: 'Révision',
-      icon: 'fa-solid fa-brain',
-      to: '/revision',
-    },
-    {
-      label: 'Catégories',
-      icon: 'fa-solid fa-tags',
-      to: '/categories',
-    },
-    {
-      label: 'Apprenants',
-      icon: 'fa-solid fa-user-graduate',
-      to: '/apprenants',
-    },
-    {
-      label: 'Formateurs',
-      icon: 'fa-solid fa-chalkboard-user',
-      to: '/formateurs',
-    },
-    {
-      label: 'Abonnement',
-      icon: 'fa-solid fa-credit-card',
-      to: '/abonnement',
-    },
+    { label: 'Dashboard', icon: 'fa-solid fa-chart-line', to: '/dashboard/admin' },
+
+    { rubrique: 'Pédagogie' },
+    { label: 'Promotions', icon: 'fa-solid fa-users', to: '/promotions' },
+    { label: 'Briefs', icon: 'fa-solid fa-clipboard', to: '/briefs' },
+    { label: 'Livrables', icon: 'fa-solid fa-inbox', to: '/suivi-livrables' },
+    { label: 'Ressources', icon: 'fa-solid fa-folder-open', to: '/ressources' },
+    { label: 'Révision', icon: 'fa-solid fa-brain', to: '/revision' },
+
+    { rubrique: 'Suivi' },
+    { label: 'Progression', icon: 'fa-solid fa-chart-simple', to: '/progression' },
+    { label: 'Rapports', icon: 'fa-solid fa-file-lines', to: '/rapports' },
+
+    { rubrique: 'Référentiel' },
+    { label: 'Formations', icon: 'fa-solid fa-book-open', to: '/formations' },
+    { label: 'Modules', icon: 'fa-solid fa-layer-group', to: '/modules' },
+    { label: 'Niveaux', icon: 'fa-solid fa-stairs', to: '/niveaux' },
+    { label: 'Catégories', icon: 'fa-solid fa-tags', to: '/categories' },
+
+    { rubrique: 'Membres' },
+    { label: 'Apprenants', icon: 'fa-solid fa-user-graduate', to: '/apprenants' },
+    { label: 'Formateurs', icon: 'fa-solid fa-chalkboard-user', to: '/formateurs' },
+
+    { rubrique: 'Organisme' },
+    { label: 'Abonnement', icon: 'fa-solid fa-credit-card', to: '/abonnement' },
   ],
 
   FORMATEUR: [
-    {
-      label: 'Dashboard',
-      icon: 'fa-solid fa-chart-line',
-      to: '/dashboard/formateur',
-    },
-    {
-      label: 'Promotions',
-      icon: 'fa-solid fa-users',
-      to: '/promotions',
-    },
-    {
-      label: 'Formations',
-      icon: 'fa-solid fa-book-open',
-      to: '/formations',
-    },
-    {
-      label: 'Groupes',
-      icon: 'fa-solid fa-user-group',
-      to: '/groupes',
-    },
-    {
-      label: 'Briefs',
-      icon: 'fa-solid fa-clipboard',
-      to: '/briefs',
-    },
-    {
-      label: 'Livrables',
-      icon: 'fa-solid fa-inbox',
-      to: '/suivi-livrables',
-    },
-    {
-      label: 'Progression',
-      icon: 'fa-solid fa-chart-simple',
-      to: '/progression',
-    },
-    {
-      label: 'Rapports',
-      icon: 'fa-solid fa-file-lines',
-      to: '/rapports',
-    },
-    {
-      label: 'Ressources',
-      icon: 'fa-solid fa-folder-open',
-      to: '/ressources',
-    },
-    {
-      label: 'Révision',
-      icon: 'fa-solid fa-brain',
-      to: '/revision',
-    },
-    {
-      label: 'Mon activité',
-      icon: 'fa-solid fa-calendar-days',
-      to: '/mon-activite',
-    },
+    { label: 'Dashboard', icon: 'fa-solid fa-chart-line', to: '/dashboard/formateur' },
+    { label: 'Mon activité', icon: 'fa-solid fa-calendar-days', to: '/mon-activite' },
+
+    { rubrique: 'Pédagogie' },
+    { label: 'Promotions', icon: 'fa-solid fa-users', to: '/promotions' },
+    { label: 'Groupes', icon: 'fa-solid fa-user-group', to: '/groupes' },
+    { label: 'Briefs', icon: 'fa-solid fa-clipboard', to: '/briefs' },
+    { label: 'Livrables', icon: 'fa-solid fa-inbox', to: '/suivi-livrables' },
+    { label: 'Ressources', icon: 'fa-solid fa-folder-open', to: '/ressources' },
+    { label: 'Révision', icon: 'fa-solid fa-brain', to: '/revision' },
+
+    { rubrique: 'Suivi' },
+    { label: 'Progression', icon: 'fa-solid fa-chart-simple', to: '/progression' },
+    { label: 'Rapports', icon: 'fa-solid fa-file-lines', to: '/rapports' },
+
+    { rubrique: 'Référentiel' },
+    { label: 'Formations', icon: 'fa-solid fa-book-open', to: '/formations' },
   ],
 
   APPRENANT: [

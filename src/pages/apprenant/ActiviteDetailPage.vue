@@ -310,7 +310,7 @@ const formatDate = (iso) =>
             </div>
           </div>
 
-          <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:-mx-1 lg:px-1 lg:pb-1">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div class="mb-4 flex items-center justify-between">
                 <h2 class="font-['Sora'] text-sm font-semibold text-gray-900">Dates</h2>

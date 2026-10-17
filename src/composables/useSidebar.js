@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue'
 
 /**
- * État de la sidebar, partagé entre le header (bouton ☰) et la sidebar.
+ * État de la sidebar, partagé entre le header (☰ sur mobile, bouton rond sur le bord de la sidebar sur desktop) et la sidebar.
  * Desktop : réduite aux icônes ou non (mémorisé dans le navigateur).
  * Mobile : tiroir ouvert ou fermé.
  */
