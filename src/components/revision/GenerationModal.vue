@@ -7,7 +7,7 @@
  * fichiers ajoutés. Entre 1 et NB_SOURCES_MAX fichiers au total.
  * La génération continue en tâche de fond : la modale se ferme aussitôt.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import AppButton from '../ui/AppButton.vue'
 import FormField from '../ui/FormField.vue'
 import InfoBanner from '../ui/InfoBanner.vue'
@@ -78,6 +78,17 @@ onMounted(async () => {
 const total = computed(() => choixRessources.value.length + choixLivrables.value.length + fichiers.value.length)
 const tropDeSources = computed(() => total.value > NB_SOURCES_MAX)
 
+// Vérifiés en direct : nombre de questions ; « aucune source » disparaît dès qu'on en choisit une
+const SANS_SOURCE = 'Choisissez au moins une source.'
+const erreurNb = computed(() => {
+  if (!estQuiz.value) return ''
+  const n = nbQuestions.value
+  return Number.isInteger(n) && n >= 1 && n <= NB_QUESTIONS_MAX ? '' : `Entre 1 et ${NB_QUESTIONS_MAX} questions.`
+})
+watch(total, (n) => {
+  if (n && erreur.value === SANS_SOURCE) erreur.value = ''
+})
+
 const ajouterFichiers = (event) => {
   erreurFichiers.value = ''
   for (const fichier of event.target.files ?? []) {
@@ -99,10 +110,10 @@ const fermer = () => {
 
 const generer = async () => {
   if (total.value === 0) {
-    erreur.value = 'Choisissez au moins une source.'
+    erreur.value = SANS_SOURCE
     return
   }
-  if (tropDeSources.value) return
+  if (tropDeSources.value || erreurNb.value) return
 
   const donnees = new FormData()
   donnees.append('module', props.module.id)
@@ -140,7 +151,7 @@ const generer = async () => {
           <div class="flex flex-col gap-5 overflow-y-auto px-6 py-5">
             <InfoBanner v-if="erreur" variant="error" :message="erreur" />
 
-            <FormField v-if="estQuiz" label="Nombre de questions" :hint="`Entre 1 et ${NB_QUESTIONS_MAX}.`">
+            <FormField v-if="estQuiz" label="Nombre de questions" :error="erreurNb" :hint="`Entre 1 et ${NB_QUESTIONS_MAX}.`">
               <input
                 v-model.number="nbQuestions" type="number" min="1" :max="NB_QUESTIONS_MAX" :disabled="envoi"
                 class="h-11 w-32 rounded-xl border border-slate-200 px-4 font-['Plus_Jakarta_Sans'] text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"

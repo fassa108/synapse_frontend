@@ -11,6 +11,7 @@ import InfoBanner from '../../components/ui/InfoBanner.vue'
 import { useAuthStore } from '../../stores/auth'
 import { creerPromotion, getFormations } from '../../services/pedagogie'
 import { getMembres } from '../../services/membres'
+import { useFormulaire } from '../../composables/useFormulaire'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,7 +38,6 @@ const form = ref({
 
 const formateurs = ref([])
 
-const errors = ref({})
 const globalError = ref('')
 const loading = ref(false)
 
@@ -68,29 +68,20 @@ onMounted(async () => {
   }
 })
 
-const validate = () => {
-  errors.value = {}
-  if (!form.value.nom.trim()) {
-    errors.value.nom = 'Le nom de la promotion est obligatoire.'
-  }
-  if (!form.value.formation) {
-    errors.value.formation = 'La formation est obligatoire.'
-  }
-  if (!form.value.date_debut) {
-    errors.value.date_debut = 'La date de début est obligatoire.'
-  }
-  if (
-    form.value.date_fin &&
-    form.value.date_debut &&
-    form.value.date_fin < form.value.date_debut
-  ) {
-    errors.value.date_fin = 'La date de fin doit être après la date de début.'
-  }
-  return Object.keys(errors.value).length === 0
-}
+const { erreur, surSortie, toutVerifier, erreursDuServeur } = useFormulaire({
+  nom: () => (form.value.nom.trim() ? '' : 'Le nom de la promotion est obligatoire.'),
+  formation: () => (form.value.formation ? '' : 'La formation est obligatoire.'),
+  description: () => '',
+  date_debut: () => (form.value.date_debut ? '' : 'La date de début est obligatoire.'),
+  date_fin: () =>
+    form.value.date_fin && form.value.date_debut && form.value.date_fin < form.value.date_debut
+      ? 'La date de fin doit être après la date de début.'
+      : '',
+  formateurs: () => '',
+}, { valeurs: form.value })
 
 const handleSubmit = async () => {
-  if (!validate()) return
+  if (!toutVerifier()) return
 
   loading.value = true
   globalError.value = ''
@@ -110,14 +101,7 @@ const handleSubmit = async () => {
   } catch (e) {
     const data = e.response?.data
     if (data && typeof data === 'object') {
-      Object.keys(data).forEach((key) => {
-        const msg = Array.isArray(data[key]) ? data[key][0] : data[key]
-        if (key === 'non_field_errors' || key === 'detail') {
-          globalError.value = msg
-        } else {
-          errors.value[key] = msg
-        }
-      })
+      globalError.value = erreursDuServeur(data)
     } else {
       globalError.value = 'Erreur lors de la création.'
     }
@@ -148,9 +132,9 @@ const handleSubmit = async () => {
 
           <InfoBanner v-if="globalError" variant="error" :message="globalError" class="mb-6" />
 
-          <form @submit.prevent="handleSubmit" class="flex flex-col gap-5" novalidate>
+          <form @focusout="surSortie" @submit.prevent="handleSubmit" class="flex flex-col gap-5" novalidate>
 
-            <FormField label="Nom de la promotion" :error="errors.nom" required>
+            <FormField label="Nom de la promotion" :error="erreur('nom')" data-champ="nom" required>
               <TextInput
                 v-model="form.nom"
                 placeholder="Ex : Promo 2024 — Développement Web"
@@ -158,7 +142,7 @@ const handleSubmit = async () => {
               />
             </FormField>
 
-            <FormField label="Formation associée" :error="errors.formation" required>
+            <FormField label="Formation associée" :error="erreur('formation')" data-champ="formation" required>
               <AppSelect
                 v-model="form.formation"
                 :options="formationOptions"
@@ -167,7 +151,7 @@ const handleSubmit = async () => {
               />
             </FormField>
 
-            <FormField label="Description" :error="errors.description">
+            <FormField label="Description" :error="erreur('description')" data-champ="description">
               <TextInput
                 v-model="form.description"
                 type="textarea"
@@ -178,7 +162,7 @@ const handleSubmit = async () => {
             </FormField>
 
             <div class="grid grid-cols-2 gap-4">
-              <FormField label="Date de début" :error="errors.date_debut" required>
+              <FormField label="Date de début" :error="erreur('date_debut')" data-champ="date_debut" required>
                 <TextInput
                   v-model="form.date_debut"
                   type="date"
@@ -188,7 +172,7 @@ const handleSubmit = async () => {
 
               <FormField
                 label="Date de fin estimée"
-                :error="errors.date_fin"
+                :error="erreur('date_fin')" data-champ="date_fin"
                 hint="Facultatif"
               >
                 <TextInput
@@ -201,7 +185,7 @@ const handleSubmit = async () => {
 
             <FormField
               label="Formateurs"
-              :error="errors.formateurs"
+              :error="erreur('formateurs')" data-champ="formateurs"
               hint="Facultatif — vous pourrez en affecter ou en retirer depuis la fiche de la promotion."
             >
               <p

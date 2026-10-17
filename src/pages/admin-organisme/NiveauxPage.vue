@@ -7,6 +7,7 @@
  * décrite pour tout ou partie de ces niveaux (fiche du module).
  */
 import { ref, reactive, onMounted } from 'vue'
+import { useFormulaire } from '../../composables/useFormulaire'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
@@ -53,14 +54,16 @@ onMounted(async () => {
   }
 })
 
-const premier = (v) => (Array.isArray(v) ? v[0] : v)
-
 // ─── Création / modification ──────────────────────────────────────────────────
 const edition        = ref(null) // null = fermé, sinon niveau édité (ou {} en création)
 const editionLoading = ref(false)
 const editionError   = ref('')
-const erreursChamps  = ref({})
 const form = reactive({ nom: '', ordre: '', actif: 'true' })
+const { erreur, surSortie, toutVerifier, reinitialiser, erreursDuServeur } = useFormulaire({
+  ordre: () => (!String(form.ordre).trim() || parseInt(form.ordre) < 1 ? "L'ordre doit être supérieur ou égal à 1." : ''),
+  nom: () => (form.nom.trim() ? '' : 'Le nom est obligatoire.'),
+  actif: () => '',
+}, { valeurs: form })
 
 const statutOptions = [
   { value: 'true',  label: 'Actif' },
@@ -71,7 +74,7 @@ const ouvrirCreation = () => {
   const ordreSuivant = niveaux.value.reduce((max, n) => Math.max(max, n.ordre), 0) + 1
   Object.assign(form, { nom: '', ordre: String(ordreSuivant), actif: 'true' })
   editionError.value  = ''
-  erreursChamps.value = {}
+  reinitialiser()
   edition.value = {}
 }
 
@@ -82,7 +85,7 @@ const ouvrirModification = (niveau) => {
     actif: String(niveau.actif),
   })
   editionError.value  = ''
-  erreursChamps.value = {}
+  reinitialiser()
   edition.value = niveau
 }
 
@@ -91,10 +94,7 @@ const fermerEdition = () => {
 }
 
 const handleEnregistrer = async () => {
-  erreursChamps.value = {}
-  if (!form.nom.trim()) erreursChamps.value.nom = 'Le nom est obligatoire.'
-  if (!form.ordre || parseInt(form.ordre) < 1) erreursChamps.value.ordre = "L'ordre doit être supérieur ou égal à 1."
-  if (Object.keys(erreursChamps.value).length) return
+  if (!toutVerifier()) return
 
   const payload = {
     nom: form.nom.trim(),
@@ -119,10 +119,7 @@ const handleEnregistrer = async () => {
     if (data?.detail) {
       editionError.value = data.detail
     } else if (data && typeof data === 'object') {
-      erreursChamps.value = Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, premier(v)])
-      )
-      if (data.non_field_errors) editionError.value = premier(data.non_field_errors)
+      editionError.value = erreursDuServeur(data)
     } else {
       editionError.value = "Impossible d'enregistrer le niveau."
     }
@@ -239,14 +236,14 @@ const handleSupprimer = async () => {
               {{ edition.id ? 'Modifier le niveau' : 'Nouveau niveau' }}
             </h2>
           </div>
-          <form class="flex flex-col gap-4 px-6 py-5" @submit.prevent="handleEnregistrer">
+          <form class="flex flex-col gap-4 px-6 py-5" @submit.prevent="handleEnregistrer" novalidate @focusout="surSortie">
             <InfoBanner v-if="editionError" variant="error" :message="editionError" />
             <div class="grid grid-cols-3 gap-3">
-              <FormField label="Ordre" required :error="erreursChamps.ordre">
+              <FormField label="Ordre" required :error="erreur('ordre')" data-champ="ordre">
                 <TextInput v-model="form.ordre" type="number" :disabled="editionLoading" />
               </FormField>
               <div class="col-span-2">
-                <FormField label="Nom" required :error="erreursChamps.nom">
+                <FormField label="Nom" required :error="erreur('nom')" data-champ="nom">
                   <TextInput v-model="form.nom" placeholder="Ex. : Imiter" :disabled="editionLoading" />
                 </FormField>
               </div>

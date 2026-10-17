@@ -9,6 +9,7 @@
  * 4. Soumission : crée la compétence, puis crée les CompétenceNiveau renseignés
  */
 import { ref, computed, onMounted } from 'vue'
+import { useFormulaire } from '../../composables/useFormulaire'
 import { useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
@@ -45,7 +46,6 @@ const form = ref({
   actif: 'true',
 })
 
-const errors = ref({})
 const globalError = ref('')
 const loading = ref(false)
 
@@ -89,20 +89,20 @@ const handleModuleChange = async () => {
   }
 }
 
-const validate = () => {
-  errors.value = {}
-  if (!form.value.nom.trim()) errors.value.nom = 'Le nom est obligatoire.'
-  if (!form.value.module) errors.value.module = 'Le module est obligatoire.'
-  if (!form.value.ordre) {
-    errors.value.ordre = "L'ordre est obligatoire."
-  } else if (parseInt(form.value.ordre) < 1) {
-    errors.value.ordre = "L'ordre doit être ≥ 1."
-  }
-  return Object.keys(errors.value).length === 0
-}
+const { erreur, surSortie, toutVerifier, erreursDuServeur } = useFormulaire({
+  module: () => (form.value.module ? '' : 'Le module est obligatoire.'),
+  nom: () => (form.value.nom.trim() ? '' : 'Le nom est obligatoire.'),
+  description: () => '',
+  ordre: () => {
+    const ordre = String(form.value.ordre ?? '').trim()
+    if (!ordre) return "L'ordre est obligatoire."
+    return parseInt(ordre) < 1 ? "L'ordre doit être ≥ 1." : ''
+  },
+  actif: () => '',
+}, { valeurs: form.value })
 
 const handleSubmit = async () => {
-  if (!validate()) return
+  if (!toutVerifier()) return
   loading.value = true
   globalError.value = ''
 
@@ -135,14 +135,7 @@ const handleSubmit = async () => {
   } catch (e) {
     const data = e.response?.data
     if (data && typeof data === 'object') {
-      Object.keys(data).forEach((key) => {
-        const msg = Array.isArray(data[key]) ? data[key][0] : data[key]
-        if (key === 'non_field_errors' || key === 'detail') {
-          globalError.value = msg
-        } else {
-          errors.value[key] = msg
-        }
-      })
+      globalError.value = erreursDuServeur(data)
     } else {
       globalError.value = 'Erreur lors de la création.'
     }
@@ -169,7 +162,7 @@ const handleSubmit = async () => {
 
           <InfoBanner v-if="globalError" variant="error" :message="globalError" class="mb-6" />
 
-          <form @submit.prevent="handleSubmit" class="flex flex-col gap-6" novalidate>
+          <form @submit.prevent="handleSubmit" class="flex flex-col gap-6" novalidate @focusout="surSortie">
 
             <!-- Section : informations de base -->
             <div>
@@ -178,7 +171,7 @@ const handleSubmit = async () => {
               </h2>
               <div class="flex flex-col gap-4">
 
-                <FormField label="Module" :error="errors.module" required>
+                <FormField label="Module" :error="erreur('module')" data-champ="module" required>
                   <AppSelect
                     v-model="form.module"
                     :options="moduleOptions"
@@ -188,7 +181,7 @@ const handleSubmit = async () => {
                   />
                 </FormField>
 
-                <FormField label="Nom de la compétence" :error="errors.nom" required>
+                <FormField label="Nom de la compétence" :error="erreur('nom')" data-champ="nom" required>
                   <TextInput
                     v-model="form.nom"
                     placeholder="Ex : Concevoir une API REST"
@@ -196,7 +189,7 @@ const handleSubmit = async () => {
                   />
                 </FormField>
 
-                <FormField label="Description" :error="errors.description">
+                <FormField label="Description" :error="erreur('description')" data-champ="description">
                   <TextInput
                     v-model="form.description"
                     type="textarea"
@@ -209,14 +202,14 @@ const handleSubmit = async () => {
                 <div class="grid grid-cols-2 gap-4">
                   <FormField
                     label="Ordre"
-                    :error="errors.ordre"
+                    :error="erreur('ordre')" data-champ="ordre"
                     required
                     hint="Unique par module, ≥ 1"
                   >
                     <TextInput v-model="form.ordre" type="number" placeholder="1" :disabled="loading" />
                   </FormField>
 
-                  <FormField label="Statut" :error="errors.actif">
+                  <FormField label="Statut" :error="erreur('actif')" data-champ="actif">
                     <AppSelect v-model="form.actif" :options="statutOptions" :disabled="loading" />
                   </FormField>
                 </div>

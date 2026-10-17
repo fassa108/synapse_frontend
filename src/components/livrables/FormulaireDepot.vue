@@ -42,6 +42,15 @@ const envoi       = ref(false)
 
 const total = computed(() => fichiers.value.length + liens.value.length)
 
+// Lien vérifié pendant la saisie (dès 8 caractères, ou en quittant le champ)
+const LIEN_VALIDE = /^https?:\/\/\S+$/i
+const lienQuitte = ref(false)
+const erreurLien = computed(() => {
+  const url = nouveauLien.value.trim()
+  if (!url || (!lienQuitte.value && url.length < 8)) return ''
+  return LIEN_VALIDE.test(url) ? '' : 'Le lien doit commencer par http:// ou https://'
+})
+
 const ajouterFichiers = (event) => {
   erreurs.value = []
   for (const f of event.target.files ?? []) {
@@ -57,8 +66,8 @@ const ajouterLien = () => {
   erreurs.value = []
   const url = nouveauLien.value.trim()
   if (!url) return
-  if (!/^https?:\/\/\S+$/i.test(url)) {
-    erreurs.value = ['Le lien doit commencer par http:// ou https://']
+  if (!LIEN_VALIDE.test(url)) {
+    lienQuitte.value = true // l'erreur s'affiche sous le champ
     return
   }
   if (total.value >= MAX_ELEMENTS) {
@@ -67,10 +76,12 @@ const ajouterLien = () => {
   }
   liens.value.push(url)
   nouveauLien.value = ''
+  lienQuitte.value = false
 }
 
 const envoyer = async () => {
   if (nouveauLien.value.trim()) ajouterLien()
+  if (erreurLien.value) return // lien saisi mais invalide : à corriger avant l'envoi
   if (total.value === 0) {
     erreurs.value = ['Ajoutez au moins un fichier ou un lien.']
     return
@@ -128,7 +139,8 @@ const envoyer = async () => {
       <label class="font-['Plus_Jakarta_Sans'] text-xs font-semibold text-zinc-700">Liens</label>
       <div class="flex gap-2">
         <div class="flex-1">
-          <TextInput v-model="nouveauLien" placeholder="https://github.com/…" :disabled="envoi" @keydown.enter.prevent="ajouterLien" />
+          <TextInput v-model="nouveauLien" placeholder="https://github.com/…" :disabled="envoi" :aria-invalid="!!erreurLien" @blur="lienQuitte = true" @keydown.enter.prevent="ajouterLien" />
+          <p v-if="erreurLien" class="mt-1 font-['Plus_Jakarta_Sans'] text-xs text-red-600">{{ erreurLien }}</p>
         </div>
         <AppButton variant="secondary" icon="fa-solid fa-plus" :disabled="envoi || !nouveauLien.trim()" @click="ajouterLien">Ajouter</AppButton>
       </div>

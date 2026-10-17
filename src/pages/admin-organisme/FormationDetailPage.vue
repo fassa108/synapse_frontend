@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
+import { useFormulaire } from '../../composables/useFormulaire'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
@@ -29,9 +30,13 @@ const error = ref('')
 // Mode édition
 const editing = ref(false)
 const editForm = ref({})
-const editErrors = ref({})
 const editGlobalError = ref('')
 const editLoading = ref(false)
+const { erreur, surSortie, toutVerifier, reinitialiser, erreursDuServeur } = useFormulaire({
+  nom: () => (editForm.value.nom?.trim() ? '' : 'Le nom est obligatoire.'),
+  description: () => '',
+  actif: () => '',
+}, { valeurs: () => editForm.value })
 
 const statutOptions = [
   { value: 'true',  label: 'Actif' },
@@ -61,7 +66,7 @@ const startEdit = () => {
     description: formation.value.description ?? '',
     actif: String(formation.value.actif),
   }
-  editErrors.value = {}
+  reinitialiser()
   editGlobalError.value = ''
   editing.value = true
 }
@@ -71,13 +76,8 @@ const cancelEdit = () => {
 }
 
 const handleSave = async () => {
-  editErrors.value = {}
   editGlobalError.value = ''
-
-  if (!editForm.value.nom?.trim()) {
-    editErrors.value.nom = 'Le nom est obligatoire.'
-    return
-  }
+  if (!toutVerifier()) return
 
   editLoading.value = true
   try {
@@ -91,14 +91,7 @@ const handleSave = async () => {
   } catch (e) {
     const data = e.response?.data
     if (data && typeof data === 'object') {
-      Object.keys(data).forEach((key) => {
-        const msg = Array.isArray(data[key]) ? data[key][0] : data[key]
-        if (key === 'non_field_errors' || key === 'detail') {
-          editGlobalError.value = msg
-        } else {
-          editErrors.value[key] = msg
-        }
-      })
+      editGlobalError.value = erreursDuServeur(data)
     } else {
       editGlobalError.value = 'Erreur lors de la sauvegarde.'
     }
@@ -163,14 +156,14 @@ const formatDate = (iso) =>
                 @submit.prevent="handleSave"
                 class="flex flex-col gap-4"
                 novalidate
-              >
+               @focusout="surSortie">
                 <InfoBanner v-if="editGlobalError" variant="error" :message="editGlobalError" />
 
-                <FormField label="Nom" :error="editErrors.nom" required>
+                <FormField label="Nom" :error="erreur('nom')" data-champ="nom" required>
                   <TextInput v-model="editForm.nom" :disabled="editLoading" />
                 </FormField>
 
-                <FormField label="Description" :error="editErrors.description">
+                <FormField label="Description" :error="erreur('description')" data-champ="description">
                   <TextInput
                     v-model="editForm.description"
                     type="textarea"
@@ -179,7 +172,7 @@ const formatDate = (iso) =>
                   />
                 </FormField>
 
-                <FormField label="Statut" :error="editErrors.actif">
+                <FormField label="Statut" :error="erreur('actif')" data-champ="actif">
                   <AppSelect
                     v-model="editForm.actif"
                     :options="statutOptions"
@@ -284,7 +277,7 @@ const formatDate = (iso) =>
           </div>
 
           <!-- Colonne latérale -->
-          <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:-mx-1 lg:px-1 lg:pb-1">
 
             <!-- Métadonnées -->
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

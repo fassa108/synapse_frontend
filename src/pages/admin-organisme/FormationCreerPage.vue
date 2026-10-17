@@ -10,6 +10,7 @@ import AppSelect from '../../components/ui/AppSelect.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import { useAuthStore } from '../../stores/auth'
 import { creerFormation } from '../../services/pedagogie'
+import { useFormulaire } from '../../composables/useFormulaire'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -21,7 +22,6 @@ const form = ref({
   actif: true,
 })
 
-const errors = ref({})
 const globalError = ref('')
 const loading = ref(false)
 
@@ -30,16 +30,14 @@ const statutOptions = [
   { value: 'false', label: 'Inactif' },
 ]
 
-const validate = () => {
-  errors.value = {}
-  if (!form.value.nom.trim()) {
-    errors.value.nom = 'Le nom de la formation est obligatoire.'
-  }
-  return Object.keys(errors.value).length === 0
-}
+const { erreur, surSortie, toutVerifier, erreursDuServeur } = useFormulaire({
+  nom: () => (form.value.nom.trim() ? '' : 'Le nom de la formation est obligatoire.'),
+  description: () => '',
+  actif: () => '',
+}, { valeurs: form.value })
 
 const handleSubmit = async () => {
-  if (!validate()) return
+  if (!toutVerifier()) return
 
   loading.value = true
   globalError.value = ''
@@ -57,14 +55,7 @@ const handleSubmit = async () => {
     const data = e.response?.data
     if (data && typeof data === 'object') {
       // Erreurs champ par champ depuis le backend
-      Object.keys(data).forEach((key) => {
-        const msg = Array.isArray(data[key]) ? data[key][0] : data[key]
-        if (key === 'non_field_errors' || key === 'detail') {
-          globalError.value = msg
-        } else {
-          errors.value[key] = msg
-        }
-      })
+      globalError.value = erreursDuServeur(data)
     } else {
       globalError.value = 'Une erreur est survenue lors de la création.'
     }
@@ -100,12 +91,12 @@ const handleSubmit = async () => {
             class="mb-6"
           />
 
-          <form @submit.prevent="handleSubmit" class="flex flex-col gap-5" novalidate>
+          <form @focusout="surSortie" @submit.prevent="handleSubmit" class="flex flex-col gap-5" novalidate>
 
             <!-- Nom -->
             <FormField
               label="Nom de la formation"
-              :error="errors.nom"
+              :error="erreur('nom')" data-champ="nom"
               required
             >
               <TextInput
@@ -116,7 +107,7 @@ const handleSubmit = async () => {
             </FormField>
 
             <!-- Description -->
-            <FormField label="Description" :error="errors.description">
+            <FormField label="Description" :error="erreur('description')" data-champ="description">
               <TextInput
                 v-model="form.description"
                 type="textarea"
@@ -127,7 +118,7 @@ const handleSubmit = async () => {
             </FormField>
 
             <!-- Statut -->
-            <FormField label="Statut" :error="errors.actif">
+            <FormField label="Statut" :error="erreur('actif')" data-champ="actif">
               <AppSelect
                 v-model="form.actif"
                 :options="statutOptions"
