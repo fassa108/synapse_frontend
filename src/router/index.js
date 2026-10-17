@@ -197,6 +197,26 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    // Accessible même organisme suspendu pour impayé (renouvellement)
+    path: '/abonnement',
+    name: 'abonnement',
+    component: () => import('../pages/admin-organisme/MonAbonnementPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'], horsSuspension: true },
+  },
+  {
+    // Retour de PayDunya après paiement (?token=…)
+    path: '/abonnement/retour',
+    name: 'abonnement-retour',
+    component: () => import('../pages/admin-organisme/MonAbonnementPage.vue'),
+    meta: { requiresAuth: true, roles: ['ADMINISTRATEUR'], horsSuspension: true },
+  },
+  {
+    path: '/admin/finances',
+    name: 'admin-finances',
+    component: () => import('../pages/admin-saas/FinancesPage.vue'),
+    meta: { requiresAuth: true, roles: ['admin_saas'] },
+  },
+  {
     path: '/notifications',
     name: 'notifications',
     component: () => import('../pages/shared/NotificationsPage.vue'),
@@ -343,10 +363,17 @@ const routes = [
     meta: { public: true },
   },
 
-  // Paiement simulé de l'abonnement (lien avec la référence secrète)
+  // Paiement de l'abonnement via PayDunya (lien avec la référence secrète)
   {
     path: '/inscription/paiement/:reference',
     name: 'inscription-paiement',
+    component: () => import('../pages/auth/PaiementInscriptionPage.vue'),
+    meta: { public: true },
+  },
+  {
+    // Retour de PayDunya après paiement (?token=…)
+    path: '/inscription/paiement/:reference/retour',
+    name: 'inscription-paiement-retour',
     component: () => import('../pages/auth/PaiementInscriptionPage.vue'),
     meta: { public: true },
   },
@@ -429,8 +456,12 @@ router.beforeEach((to) => {
 
     // Organisme suspendu ou accès du membre suspendu :
     // aucun accès aux pages de l'organisme
+    // Exception : l'administrateur peut toujours ouvrir « Mon abonnement »
+    // pour renouveler un organisme suspendu faute de paiement.
+    const renouvellementPossible = to.meta.horsSuspension && currentRole === 'ADMINISTRATEUR' && tenantCourant?.actif !== false
     if (
       currentRole !== 'admin_saas' &&
+      !renouvellementPossible &&
       (tenantCourant?.statut === false || tenantCourant?.actif === false)
     ) {
       return { name: 'organisme-suspendu' }

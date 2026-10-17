@@ -8,14 +8,30 @@
  * L'utilisateur reste connecté. S'il appartient à d'autres organismes
  * accessibles, il peut en choisir un autre.
  */
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { getAbonnement } from '../../services/abonnement'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const organismeSuspendu = computed(() => authStore.tenantCourant?.statut === false)
+
+// Suspendu faute de paiement : l'administrateur peut renouveler lui-même
+const estAdmin = computed(() => authStore.tenantCourant?.role === 'ADMINISTRATEUR' && authStore.tenantCourant?.actif !== false)
+const impaye = ref(authStore.tenantCourant?.abonnement_expire === true)
+
+onMounted(async () => {
+  if (!organismeSuspendu.value || !estAdmin.value) return
+  try {
+    const { abonnement } = await getAbonnement(authStore.tenantCourant.id)
+    impaye.value = abonnement.suspendu_pour_impaye
+    if (impaye.value) authStore.marquerAbonnementExpire()
+  } catch {
+    // Page affichée telle quelle
+  }
+})
 
 const autresOrganismes = computed(() =>
   authStore.tenants.filter(
@@ -45,9 +61,28 @@ const handleLogout = async () => {
       </div>
 
       <h1 class="font-['Plus_Jakarta_Sans'] text-2xl font-bold text-gray-900">
-        {{ organismeSuspendu ? 'Organisme suspendu' : 'Accès suspendu' }}
+        {{ organismeSuspendu && impaye ? 'Abonnement expiré' : organismeSuspendu ? 'Organisme suspendu' : 'Accès suspendu' }}
       </h1>
-      <p class="mt-2 font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">
+
+      <!-- Impayé : renouvellement par l'administrateur -->
+      <template v-if="organismeSuspendu && impaye">
+        <p class="mt-2 font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">
+          L'abonnement de
+          <span class="font-semibold text-zinc-700">{{ authStore.tenantCourant?.nom ?? 'cet organisme' }}</span>
+          n'a pas été renouvelé : l'accès est suspendu.
+          {{ estAdmin ? 'Renouvelez-le pour rétablir immédiatement l’accès de tous les membres.' : 'Contactez l’administrateur de votre organisme pour le renouveler.' }}
+        </p>
+        <button
+          v-if="estAdmin"
+          type="button"
+          class="mt-6 w-full rounded-xl bg-indigo-500 px-6 py-3 font-['Plus_Jakarta_Sans'] text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-600"
+          @click="router.push('/abonnement')"
+        >
+          <i class="fa-solid fa-credit-card mr-1.5"></i> Renouveler l'abonnement
+        </button>
+      </template>
+
+      <p v-else class="mt-2 font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">
         {{ organismeSuspendu ? "L'accès à" : 'Votre accès à' }}
         <span class="font-semibold text-zinc-700">{{ authStore.tenantCourant?.nom ?? 'cet organisme' }}</span>
         {{ organismeSuspendu ? 'est temporairement suspendu.' : 'a été suspendu par son administrateur.' }}

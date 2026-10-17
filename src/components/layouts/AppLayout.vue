@@ -6,6 +6,7 @@ import LayoutHeader from './LayoutHeader.vue'
 import AssistantFlottant from '../assistant/AssistantFlottant.vue'
 import { useAuthStore } from '../../stores/auth'
 import { useSidebar } from '../../composables/useSidebar'
+import { useAbonnement } from '../../composables/useAbonnement'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +21,19 @@ const tenants = computed(() => authStore.tenants ?? [])
 
 const prenom = computed(() => authStore.utilisateur?.prenom ?? '')
 const nom = computed(() => authStore.utilisateur?.nom ?? '')
+
+// Échéance de l'abonnement (bannière), sauf sur la page « Abonnement » elle-même
+const { alerte, charger: chargerAbonnement } = useAbonnement()
+const alerteAbonnement = computed(() =>
+  role.value === 'ADMINISTRATEUR' && !route.path.startsWith('/abonnement') ? alerte.value : null,
+)
+watch(
+  () => [role.value, authStore.tenantCourant?.id],
+  ([r, id]) => {
+    if (r === 'ADMINISTRATEUR') chargerAbonnement(id)
+  },
+  { immediate: true },
+)
 
 const handleChangerOrganisme = () => {
   router.push('/choisir-organisme')
@@ -65,6 +79,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', surTouche))
         :nom="nom"
         :role="role"
       />
+
+      <!-- Abonnement bientôt échu, en grâce ou expiré : administrateur seulement -->
+      <div
+        v-if="alerteAbonnement"
+        class="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 font-['Plus_Jakarta_Sans'] text-sm sm:px-6"
+        :class="alerteAbonnement.niveau === 'erreur' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-800'"
+      >
+        <span class="flex items-center gap-2">
+          <i :class="alerteAbonnement.niveau === 'erreur' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-bell'"></i>
+          {{ alerteAbonnement.texte }}
+        </span>
+        <RouterLink to="/abonnement" class="font-semibold underline underline-offset-2 hover:no-underline">
+          Renouveler
+        </RouterLink>
+      </div>
 
       <!-- Contenu scrollable -->
       <main class="flex-1 overflow-y-auto">

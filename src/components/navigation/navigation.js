@@ -65,6 +65,11 @@ export const navigationByRole = {
       icon: 'fa-solid fa-chalkboard-user',
       to: '/formateurs',
     },
+    {
+      label: 'Abonnement',
+      icon: 'fa-solid fa-credit-card',
+      to: '/abonnement',
+    },
   ],
 
   FORMATEUR: [
@@ -158,6 +163,11 @@ export const navigationByRole = {
       label: 'Organismes',
       icon: 'fa-solid fa-building',
       to: '/admin/organismes',
+    },
+    {
+      label: 'Finances',
+      icon: 'fa-solid fa-coins',
+      to: '/admin/finances',
     },
     {
       label: 'Inscriptions',

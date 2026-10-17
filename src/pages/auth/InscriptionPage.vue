@@ -20,7 +20,7 @@
               Inscrire mon organisme
             </h1>
             <p class="font-['Plus_Jakarta_Sans'] text-sm leading-6 text-zinc-700">
-              Présentez votre organisme, puis réglez l'abonnement par Wave ou Orange Money.
+              Présentez votre organisme, puis réglez l'abonnement par mobile money ou carte, via PayDunya.
               Votre espace est créé aussitôt et le responsable reçoit un email pour l'activer.
             </p>
           </div>

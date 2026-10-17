@@ -137,6 +137,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   const marquerAccesSuspendu = () => mettreAJourTenantCourant({ actif: false })
 
+  // Suspendu faute de paiement : l'administrateur peut renouveler
+  const marquerAbonnementExpire = () => mettreAJourTenantCourant({ statut: false, abonnement_expire: true })
+
+  // Abonnement renouvelé : l'accès est rétabli
+  const marquerAbonnementRenouvele = () => mettreAJourTenantCourant({ statut: true, abonnement_expire: false })
+
   // ─────────────────────────────────────────
   // Déconnexion
   // ─────────────────────────────────────────
@@ -197,6 +203,8 @@ export const useAuthStore = defineStore('auth', () => {
     mettreAJourTenantCourant,
     marquerOrganismeSuspendu,
     marquerAccesSuspendu,
+    marquerAbonnementExpire,
+    marquerAbonnementRenouvele,
   }
 })
 
