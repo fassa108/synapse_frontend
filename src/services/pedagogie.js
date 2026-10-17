@@ -49,6 +49,14 @@ export const inscrireApprenant = (tenantId, promotionId, apprenantId) =>
     })
     .then((r) => r.data)
 
+// Plusieurs apprenants en une fois : { inscrits: [...], erreurs: [{ apprenant_id, message }] }
+export const inscrireApprenants = (tenantId, promotionId, apprenantIds) =>
+  api
+    .post(`tenants/${tenantId}/promotions/${promotionId}/inscrire-apprenants/`, {
+      apprenant_ids: apprenantIds,
+    })
+    .then((r) => r.data)
+
 export const desinscrireApprenant = (tenantId, promotionId, apprenantId) =>
   api
     .post(`tenants/${tenantId}/promotions/${promotionId}/desinscrire-apprenant/`, {
