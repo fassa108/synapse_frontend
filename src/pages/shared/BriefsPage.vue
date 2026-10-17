@@ -103,6 +103,15 @@ const formatDate = (iso) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
 const depasse = (iso) => iso && new Date(iso) < new Date()
+
+// Retour du formulaire de création : { variant, message, briefId }, affiché une fois
+const retourBrief = ref(window.history.state?.retourBrief ?? null)
+if (retourBrief.value) window.history.replaceState({ ...window.history.state, retourBrief: null }, '')
+
+// Brouillons du formateur : invisibles pour les apprenants tant qu'ils ne sont pas publiés
+const nbBrouillons = computed(() =>
+  estFormateur.value ? briefs.value.filter((b) => b.statut === 'BROUILLON').length : 0
+)
 </script>
 
 <template>
@@ -128,6 +137,34 @@ const depasse = (iso) => iso && new Date(iso) < new Date()
       </div>
 
       <InfoBanner v-if="error" variant="error" :message="error" class="mt-4" />
+
+      <div
+        v-if="retourBrief"
+        class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 font-['Plus_Jakarta_Sans'] text-sm"
+        :class="retourBrief.variant === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'"
+      >
+        <span>
+          <i class="fa-solid mr-1.5" :class="retourBrief.variant === 'warning' ? 'fa-triangle-exclamation text-amber-500' : 'fa-circle-check text-emerald-500'"></i>
+          {{ retourBrief.message }}
+        </span>
+        <span class="flex items-center gap-3">
+          <RouterLink :to="`/briefs/${retourBrief.briefId}`" class="font-semibold underline-offset-2 hover:underline">Ouvrir le brief</RouterLink>
+          <button type="button" class="opacity-60 hover:opacity-100" aria-label="Fermer" @click="retourBrief = null">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </span>
+      </div>
+
+      <div
+        v-if="nbBrouillons && filtreStatut !== 'BROUILLON'"
+        class="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 font-['Plus_Jakarta_Sans'] text-sm text-zinc-600"
+      >
+        <span>
+          <i class="fa-solid fa-eye-slash mr-1.5 text-zinc-400"></i>
+          {{ nbBrouillons }} brief{{ nbBrouillons > 1 ? 's' : '' }} en brouillon, invisible{{ nbBrouillons > 1 ? 's' : '' }} pour les apprenants.
+        </span>
+        <button type="button" class="font-semibold text-indigo-600 hover:underline" @click="filtreStatut = 'BROUILLON'">Voir</button>
+      </div>
 
       <div class="mt-4">
         <DataTable :columns="columns" :rows="paginated" :loading="loading" @row-click="(row) => router.push(`/briefs/${row.id}`)">

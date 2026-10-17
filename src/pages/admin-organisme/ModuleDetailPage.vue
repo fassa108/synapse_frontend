@@ -6,6 +6,7 @@
  * Chaque compétence affiche ses niveaux si disponibles.
  */
 import { ref, computed, onMounted } from 'vue'
+import { useFormulaire } from '../../composables/useFormulaire'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
@@ -25,7 +26,6 @@ import {
   creerCompetenceNiveau,
   modifierCompetenceNiveau,
   supprimerCompetenceNiveau,
-  getCompetences as fetchComps,
 } from '../../services/pedagogie'
 
 const route   = useRoute()
@@ -47,16 +47,10 @@ const error          = ref('')
 // Panneau de création compétence (inline)
 const showCreer      = ref(false)
 const creerForm      = ref({ nom: '', description: '', ordre: '' })
-const creerErrors    = ref({})
 const creerGlobalErr = ref('')
 const creerLoading   = ref(false)
 // Descriptions par niveauId pour la nouvelle compétence
 const niveauDescs    = ref({})
-
-const statutOptions = [
-  { value: 'true',  label: 'Actif' },
-  { value: 'false', label: 'Inactif' },
-]
 
 // ─── Chargement ───────────────────────────────────────────────────────────────
 onMounted(async () => {
@@ -100,7 +94,7 @@ const ouvrirCreer = () => {
   // Suggérer l'ordre suivant
   const maxOrdre = competences.value.reduce((max, c) => Math.max(max, c.ordre), 0)
   creerForm.value = { nom: '', description: '', ordre: String(maxOrdre + 1), actif: 'true' }
-  creerErrors.value    = {}
+  reinitialiser()
   creerGlobalErr.value = ''
   niveaux.value.forEach((n) => { niveauDescs.value[n.id] = '' })
   showCreer.value = true
@@ -108,19 +102,18 @@ const ouvrirCreer = () => {
 
 const annulerCreer = () => { showCreer.value = false }
 
-const validateCreer = () => {
-  creerErrors.value = {}
-  if (!creerForm.value.nom.trim()) creerErrors.value.nom = 'Le nom est obligatoire.'
-  if (!creerForm.value.ordre) {
-    creerErrors.value.ordre = "L'ordre est obligatoire."
-  } else if (parseInt(creerForm.value.ordre) < 1) {
-    creerErrors.value.ordre = "L'ordre doit être ≥ 1."
-  }
-  return Object.keys(creerErrors.value).length === 0
-}
+const { erreur, surSortie, toutVerifier, reinitialiser, erreursDuServeur } = useFormulaire({
+  nom: () => (creerForm.value.nom.trim() ? '' : 'Le nom est obligatoire.'),
+  ordre: () => {
+    const ordre = String(creerForm.value.ordre ?? '').trim()
+    if (!ordre) return "L'ordre est obligatoire."
+    return parseInt(ordre) < 1 ? "L'ordre doit être ≥ 1." : ''
+  },
+  description: () => '',
+}, { valeurs: () => creerForm.value })
 
 const handleCreerCompetence = async () => {
-  if (!validateCreer()) return
+  if (!toutVerifier()) return
   creerLoading.value   = true
   creerGlobalErr.value = ''
 
@@ -155,11 +148,7 @@ const handleCreerCompetence = async () => {
   } catch (e) {
     const data = e.response?.data
     if (data && typeof data === 'object') {
-      Object.keys(data).forEach((key) => {
-        const msg = Array.isArray(data[key]) ? data[key][0] : data[key]
-        if (key === 'non_field_errors' || key === 'detail') creerGlobalErr.value = msg
-        else creerErrors.value[key] = msg
-      })
+      creerGlobalErr.value = erreursDuServeur(data)
     } else {
       creerGlobalErr.value = 'Erreur lors de la création.'
     }
@@ -285,18 +274,18 @@ const nomNiveau = (niveauId) =>
 
               <InfoBanner v-if="creerGlobalErr" variant="error" :message="creerGlobalErr" class="mb-4" />
 
-              <form @submit.prevent="handleCreerCompetence" class="flex flex-col gap-4" novalidate>
+              <form @submit.prevent="handleCreerCompetence" class="flex flex-col gap-4" novalidate @focusout="surSortie">
 
                 <div class="grid grid-cols-2 gap-4">
-                  <FormField label="Nom" :error="creerErrors.nom" required class="col-span-2 sm:col-span-1">
+                  <FormField label="Nom" :error="erreur('nom')" data-champ="nom" required class="col-span-2 sm:col-span-1">
                     <TextInput v-model="creerForm.nom" placeholder="Ex : Concevoir une API REST" :disabled="creerLoading" />
                   </FormField>
-                  <FormField label="Ordre" :error="creerErrors.ordre" required hint="Unique dans ce module, ≥ 1">
+                  <FormField label="Ordre" :error="erreur('ordre')" data-champ="ordre" required hint="Unique dans ce module, ≥ 1">
                     <TextInput v-model="creerForm.ordre" type="number" :disabled="creerLoading" />
                   </FormField>
                 </div>
 
-                <FormField label="Description" :error="creerErrors.description">
+                <FormField label="Description" :error="erreur('description')" data-champ="description">
                   <TextInput v-model="creerForm.description" type="textarea" :rows="2" :disabled="creerLoading" />
                 </FormField>
 
@@ -412,7 +401,7 @@ const nomNiveau = (niveauId) =>
           </div>
 
           <!-- Colonne latérale : infos du module -->
-          <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:-mx-1 lg:px-1 lg:pb-1">
 
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 class="mb-4 font-['Sora'] text-sm font-semibold text-gray-900">Informations</h2>

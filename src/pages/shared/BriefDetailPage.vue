@@ -105,6 +105,8 @@ onMounted(async () => {
     assignations.value = ass
     inscriptions.value = ins
     groupes.value = grps
+    if (ass.length) ongletPage.value = 'rendus'
+    else if (estFormateur.value && promo.actif && brief.value.statut !== 'ARCHIVE') panneauAssignation.value = true
   } catch {
     error.value = 'Impossible de charger le brief.'
   } finally {
@@ -275,6 +277,23 @@ const resumeRendus = computed(() => {
   return `${rendus} / ${assignations.value.length} rendu${rendus > 1 ? 's' : ''}`
 })
 
+// ─── Onglets ──────────────────────────────────────────────────────────────────
+// Brief déjà assigné : on arrive sur le suivi des rendus ; sinon sur le contenu
+const ongletPage = ref('contenu')
+const panneauAssignation = ref(false) // panneau « Assigner » replié par défaut
+const nbAEvaluer = computed(() =>
+  assignations.value.filter((a) => depotsDe(a.id).length && evaluable(a.id)).length
+)
+const onglets = computed(() => [
+  { cle: 'contenu', libelle: 'Contenu', icone: 'fa-file-lines' },
+  {
+    cle: 'rendus',
+    libelle: `Assignations et rendus (${assignations.value.length})`,
+    icone: 'fa-inbox',
+    badge: nbAEvaluer.value ? `${nbAEvaluer.value} à évaluer` : '',
+  },
+])
+
 // ─── Commentaires des pairs ───────────────────────────────────────────────────
 const chargerCommentaires = async () => {
   commentaires.value = await getCommentaires(tenantId, { brief: briefId })
@@ -421,8 +440,26 @@ const formatDate = (iso) =>
         <InfoBanner v-if="pageSuccess" variant="success" :message="pageSuccess" class="mt-4" />
         <InfoBanner v-if="actionError" variant="error" :message="actionError" class="mt-4" />
 
+        <!-- Onglets : le contenu du brief, ou le suivi des rendus -->
+        <nav class="mt-6 flex gap-1 border-b border-slate-200" role="tablist">
+          <button
+            v-for="o in onglets"
+            :key="o.cle"
+            type="button"
+            role="tab"
+            :aria-selected="ongletPage === o.cle"
+            class="-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 font-['Plus_Jakarta_Sans'] text-sm font-semibold transition"
+            :class="ongletPage === o.cle ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-zinc-500 hover:text-zinc-800'"
+            @click="ongletPage = o.cle"
+          >
+            <i class="fa-solid text-xs" :class="o.icone"></i>{{ o.libelle }}
+            <span v-if="o.badge" class="rounded-full bg-sky-50 px-1.5 text-[11px] text-sky-700">{{ o.badge }}</span>
+          </button>
+        </nav>
+
         <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div class="flex flex-col gap-6 lg:col-span-2">
+            <template v-if="ongletPage === 'contenu'">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 class="mb-2 font-['Sora'] text-base font-semibold text-gray-900">Description</h2>
               <p class="whitespace-pre-line font-['Plus_Jakarta_Sans'] text-sm text-zinc-700">{{ brief.description }}</p>
@@ -453,21 +490,31 @@ const formatDate = (iso) =>
               </ul>
             </div>
 
+            </template>
+
             <!-- Assignations -->
-            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div class="mb-4 flex items-baseline justify-between gap-3">
-                <h2 class="font-['Sora'] text-base font-semibold text-gray-900">
-                  Assignations et rendus ({{ assignations.length }})
-                </h2>
-                <div v-if="assignations.length" class="flex items-baseline gap-3">
-                  <span class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">{{ resumeRendus }}</span>
-                  <RouterLink :to="`/suivi-livrables?brief=${brief.id}`" class="font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline">
-                    Voir les livrables
-                  </RouterLink>
+            <div v-else class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 class="font-['Sora'] text-base font-semibold text-gray-900">
+                    Assignations et rendus ({{ assignations.length }})
+                  </h2>
+                  <p v-if="assignations.length" class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
+                    {{ resumeRendus }} ·
+                    <RouterLink :to="`/suivi-livrables?brief=${brief.id}`" class="text-indigo-600 hover:underline">Voir les livrables</RouterLink>
+                  </p>
                 </div>
+                <AppButton
+                  v-if="peutGerer && brief.statut !== 'ARCHIVE'"
+                  :variant="panneauAssignation ? 'secondary' : 'primary'"
+                  :icon="panneauAssignation ? 'fa-solid fa-xmark' : 'fa-solid fa-user-plus'"
+                  @click="panneauAssignation = !panneauAssignation"
+                >
+                  {{ panneauAssignation ? 'Fermer' : 'Assigner' }}
+                </AppButton>
               </div>
 
-              <div v-if="peutGerer && brief.statut !== 'ARCHIVE'" class="mb-5 flex flex-col gap-3 rounded-xl border border-slate-200 p-4">
+              <div v-if="peutGerer && brief.statut !== 'ARCHIVE' && panneauAssignation" class="mb-5 flex flex-col gap-3 rounded-xl border border-indigo-100 bg-indigo-50/30 p-4">
                 <div class="flex flex-wrap items-center gap-3">
                   <div class="flex rounded-xl border border-slate-200 p-0.5">
                     <button v-for="t in [{ v: 'apprenant', l: 'Apprenants', n: selApprenants.length }, { v: 'groupe', l: 'Groupes', n: selGroupes.length }]"
@@ -581,7 +628,7 @@ const formatDate = (iso) =>
           </div>
 
           <!-- Colonne latérale -->
-          <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:-mx-1 lg:px-1 lg:pb-1">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div class="mb-4 flex items-center justify-between">
                 <h2 class="font-['Sora'] text-sm font-semibold text-gray-900">Détails</h2>

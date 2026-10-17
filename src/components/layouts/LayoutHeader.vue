@@ -95,13 +95,13 @@ const initiales = computed(() => {
   <header
     class="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white px-4 shadow-[0px_1px_4px_0px_rgba(0,0,0,0.04)] sm:px-6"
   >
-    <!-- Gauche : ouverture/fermeture de la sidebar + breadcrumbs -->
+    <!-- Gauche : ouverture du menu (mobile seulement, la réduction desktop est dans la sidebar) + breadcrumbs -->
     <div class="flex min-w-0 items-center gap-3">
       <button
         type="button"
-        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-slate-100 hover:text-zinc-700"
-        aria-label="Ouvrir ou fermer le menu"
-        title="Ouvrir ou fermer le menu"
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-slate-100 hover:text-zinc-700 lg:hidden"
+        aria-label="Ouvrir le menu"
+        title="Ouvrir le menu"
         @click="basculerSidebar"
       >
         <i class="fa-solid fa-bars text-sm"></i>
@@ -146,8 +146,14 @@ const initiales = computed(() => {
       <!-- Notifications -->
       <NotificationsMenu />
 
-      <!-- Utilisateur -->
-      <div class="flex items-center gap-2">
+      <!-- Utilisateur : ouvre le profil -->
+      <RouterLink
+        to="/profil"
+        class="-mr-1.5 flex items-center gap-2 rounded-xl py-1 pl-2 pr-1.5 transition hover:bg-slate-100"
+        :class="{ 'bg-slate-100': route.path === '/profil' }"
+        title="Mon profil"
+        aria-label="Mon profil"
+      >
         <div class="hidden flex-col items-end sm:flex">
           <span class="font-['Plus_Jakarta_Sans'] text-xs font-semibold leading-4 text-gray-900">
             {{ prenom }} {{ nom }}
@@ -161,7 +167,7 @@ const initiales = computed(() => {
             {{ initiales }}
           </span>
         </div>
-      </div>
+      </RouterLink>
 
     </div>
   </header>

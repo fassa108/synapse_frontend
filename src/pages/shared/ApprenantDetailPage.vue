@@ -139,7 +139,7 @@ const initiales = (m) =>
         <div class="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
 
           <!-- Profil -->
-          <div class="lg:col-span-1">
+          <div class="lg:col-span-1 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:-mx-1 lg:px-1 lg:pb-1">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div class="mb-5 flex flex-col items-center gap-3">
                 <div class="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100 font-['Sora'] text-xl font-bold text-indigo-700">

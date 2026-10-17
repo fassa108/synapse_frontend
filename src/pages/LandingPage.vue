@@ -173,7 +173,7 @@ const pied = computed(() => `© ${annee} EduHub · Projet de certification · Si
 
     <main>
       <!-- ═══ Accroche ════════════════════════════════════════════════════════ -->
-      <section id="haut" class="relative isolate overflow-hidden bg-indigo-950 pb-16 pt-32 sm:pt-36 lg:pb-24">
+      <section id="haut" class="relative isolate overflow-hidden bg-indigo-950 pb-16 pt-16 sm:pt-36 lg:pb-24">
         <!-- Fond : dégradé et halos colorés (indispensables à l'effet de verre) -->
         <div class="absolute inset-0 -z-10 bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-900"></div>
         <div class="absolute -left-32 top-10 -z-10 h-96 w-96 rounded-full bg-indigo-500/40 blur-3xl"></div>
@@ -182,10 +182,11 @@ const pied = computed(() => `© ${annee} EduHub · Projet de certification · Si
 
         <div class="mx-auto grid max-w-6xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <h1 class="font-['Sora'] text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl">
-              Du brief à la <br class="hidden sm:block" />
-              compétence validée
-            </h1>
+            <h2 class="font-['Sora'] text-4xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">
+              L'excellence pédagogique
+               <br class="hidden sm:block" />
+              au service de votre avenir
+            </h2>
             <p class="mt-6 max-w-xl text-lg leading-8 text-indigo-100/90">
               EduHub réunit briefs, rendus, évaluations et progression par compétences
               dans un seul espace, pour les organismes qui forment par projets.
@@ -208,12 +209,12 @@ const pied = computed(() => `© ${annee} EduHub · Projet de certification · Si
           </div>
 
           <!-- Photo encadrée, avec des cartes en verre qui illustrent le cycle -->
-          <div class="relative mx-auto w-full max-w-md">
+          <div class="relative mx-auto w-3/4 max-w-md">
             <div class="overflow-hidden rounded-[2rem] border border-white/20 bg-white/10 p-2 shadow-2xl shadow-indigo-950/50 backdrop-blur-md">
               <img :src="photo" alt="Un formateur accompagne des apprenants en salle informatique" class="aspect-[4/5] w-full rounded-[1.6rem] object-cover object-[center_25%]" />
             </div>
 
-            <div class="flottant absolute -left-4 top-10 flex items-center gap-3 rounded-2xl border border-white/25 bg-indigo-950/45 px-4 py-3 shadow-xl backdrop-blur-xl sm:-left-10">
+            <!-- <div class="flottant absolute -left-4 top-10 flex items-center gap-3 rounded-2xl border border-white/25 bg-indigo-950/45 px-4 py-3 shadow-xl backdrop-blur-xl sm:-left-10">
               <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-400/90 text-white"><i class="fa-solid fa-file-arrow-up text-sm"></i></span>
               <div>
                 <p class="text-xs font-bold text-white">Livrable déposé</p>
@@ -235,10 +236,10 @@ const pied = computed(() => `© ${annee} EduHub · Projet de certification · Si
                 <p class="text-xs font-bold text-white">Quiz de révision prêt</p>
                 <p class="text-[11px] text-indigo-100/80">validé par le formateur</p>
               </div>
-            </div>
+            </div> -->
           </div>
         </div>
-
+        <br>
         <!-- Chiffres -->
         <div ref="sectionChiffres" class="mx-auto mt-20 grid max-w-6xl grid-cols-2 gap-3 px-4 sm:px-6 lg:grid-cols-4 lg:gap-4">
           <div

@@ -7,6 +7,7 @@
  * Une catégorie utilisée ne se supprime pas : on la désactive.
  */
 import { ref, reactive, onMounted } from 'vue'
+import { useFormulaire } from '../../composables/useFormulaire'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
@@ -57,25 +58,25 @@ onMounted(async () => {
   }
 })
 
-const premier = (v) => (Array.isArray(v) ? v[0] : v)
-
 // ─── Création / modification ──────────────────────────────────────────────────
 const edition        = ref(null)
 const editionLoading = ref(false)
 const editionError   = ref('')
 const form = reactive({ nom: '', actif: 'true' })
+const { erreur, surSortie, toutVerifier, reinitialiser, erreursDuServeur } = useFormulaire({
+  nom: () => (form.nom.trim() ? '' : 'Le nom est obligatoire.'),
+  actif: () => '',
+}, { valeurs: form })
 
 const ouvrir = (categorie = {}) => {
   Object.assign(form, { nom: categorie.nom ?? '', actif: String(categorie.actif ?? true) })
   editionError.value = ''
+  reinitialiser()
   edition.value = categorie
 }
 
 const enregistrer = async () => {
-  if (!form.nom.trim()) {
-    editionError.value = 'Le nom est obligatoire.'
-    return
-  }
+  if (!toutVerifier()) return
   editionLoading.value = true
   editionError.value = ''
   try {
@@ -91,7 +92,7 @@ const enregistrer = async () => {
     edition.value = null
   } catch (e) {
     const d = e.response?.data
-    editionError.value = d?.detail || premier(d?.nom) || "Impossible d'enregistrer la catégorie."
+    editionError.value = d?.detail || erreursDuServeur(d) || "Impossible d'enregistrer la catégorie."
   } finally {
     editionLoading.value = false
   }
@@ -170,9 +171,9 @@ const supprimer = async () => {
               {{ edition.id ? 'Modifier la catégorie' : 'Nouvelle catégorie' }}
             </h2>
           </div>
-          <form class="flex flex-col gap-4 px-6 py-5" @submit.prevent="enregistrer">
+          <form class="flex flex-col gap-4 px-6 py-5" @submit.prevent="enregistrer" novalidate @focusout="surSortie">
             <InfoBanner v-if="editionError" variant="error" :message="editionError" />
-            <FormField label="Nom" required>
+            <FormField label="Nom" required :error="erreur('nom')" data-champ="nom">
               <TextInput v-model="form.nom" placeholder="Ex. : Veille" :disabled="editionLoading" />
             </FormField>
             <FormField v-if="edition.id" label="Statut" hint="Une catégorie inactive n'est plus proposée pour les nouveaux briefs.">

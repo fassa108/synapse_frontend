@@ -22,9 +22,17 @@ const estActif = (to) => route.path === to || route.path.startsWith(`${to}/`)
 
 <template>
   <nav class="flex flex-col gap-0.5" aria-label="Navigation principale">
+    <template v-for="item in items" :key="item.to ?? item.rubrique">
+    <!-- Titre de rubrique ; sidebar réduite : simple séparateur -->
+    <p
+      v-if="item.rubrique"
+      class="mt-4 mb-1 px-3 font-['Plus_Jakarta_Sans'] text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+      :class="reduite ? 'lg:mx-2 lg:mt-3 lg:mb-2 lg:h-px lg:overflow-hidden lg:bg-gray-200 lg:p-0 lg:text-transparent' : ''"
+    >
+      {{ item.rubrique }}
+    </p>
     <RouterLink
-      v-for="item in items"
-      :key="item.to"
+      v-else
       :to="item.to"
       custom
       v-slot="{ href, navigate }"
@@ -51,5 +59,6 @@ const estActif = (to) => route.path === to || route.path.startsWith(`${to}/`)
         <span :class="reduite ? 'lg:hidden' : ''">{{ item.label }}</span>
       </a>
     </RouterLink>
+    </template>
   </nav>
 </template>

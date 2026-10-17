@@ -338,7 +338,7 @@ const etatBrief = {
             ></div>
           </section>
 
-          <aside class="flex flex-col gap-6">
+          <aside class="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:-mx-1 lg:px-1 lg:pb-1">
             <div v-if="d.niveau" class="rounded-2xl border p-4 ring-1" :class="classeNiveau(d.niveau)">
               <p class="font-['Sora'] text-sm font-semibold capitalize">{{ d.niveau }}</p>
               <ul class="mt-1 list-disc pl-5 font-['Plus_Jakarta_Sans'] text-xs">

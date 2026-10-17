@@ -14,7 +14,7 @@ const props = defineProps({
 
 const router    = useRouter()
 const authStore = useAuthStore()
-const { reduite, ouverteMobile } = useSidebar()
+const { reduite, ouverteMobile, fermerMobile } = useSidebar()
 
 const navigation = computed(() => navigationByRole[props.role] ?? [])
 
@@ -31,15 +31,15 @@ const handleLogout = async () => {
 
 <template>
   <aside
-    class="fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-gray-200 bg-white transition-[width,transform] duration-200 lg:static lg:translate-x-0"
+    class="fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-gray-200 bg-white transition-[width,transform] duration-200 lg:relative lg:translate-x-0"
     :class="[
       ouverteMobile ? 'translate-x-0 shadow-xl' : '-translate-x-full',
       reduite ? 'lg:w-16' : 'lg:w-64',
     ]"
   >
-    <!-- Logo -->
+    <!-- Logo, et fermeture du tiroir sur mobile -->
     <div
-      class="flex h-14 shrink-0 items-center border-b border-gray-100 px-5"
+      class="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-100 pl-5 pr-3"
       :class="reduite ? 'lg:justify-center lg:px-0' : ''"
     >
       <img src="../../assets/logo-eduhub.png" alt="EduHub" class="h-8 w-auto" :class="masqueLibelle" />
@@ -49,26 +49,34 @@ const handleLogout = async () => {
         class="hidden h-7 w-auto"
         :class="reduite ? 'lg:block' : ''"
       />
+      <button
+        type="button"
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 lg:hidden"
+        aria-label="Fermer le menu"
+        @click="fermerMobile"
+      >
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
+
+    <!-- Réduire / agrandir (desktop) : bouton rond à cheval sur le bord droit, à hauteur du logo -->
+    <button
+      type="button"
+      class="absolute top-4 -right-3 z-50 hidden h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 lg:flex"
+      :aria-label="reduite ? 'Agrandir le menu' : 'Réduire le menu'"
+      :title="reduite ? 'Agrandir le menu' : 'Réduire le menu'"
+      @click="reduite = !reduite"
+    >
+      <i class="fa-solid fa-chevron-left text-[10px] transition-transform duration-200" :class="{ 'rotate-180': reduite }"></i>
+    </button>
 
     <!-- Navigation scrollable -->
     <div class="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3" :class="reduite ? 'lg:px-2' : ''">
       <SidebarNav :items="navigation" :reduite="reduite" />
     </div>
 
-    <!-- Pied : profil, paramètres, déconnexion -->
+    <!-- Pied : paramètres, déconnexion (le profil s'ouvre depuis l'en-tête) -->
     <div class="flex flex-col gap-0.5 border-t border-gray-100 px-3 py-3" :class="reduite ? 'lg:px-2' : ''">
-      <RouterLink
-        to="/profil"
-        class="flex items-center gap-3 rounded-lg px-3 py-2 font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
-        :class="centreLien"
-        :title="infobulle('Profil')"
-        active-class="bg-gray-100 !text-gray-900"
-      >
-        <i class="fa-regular fa-user w-4 shrink-0 text-center text-sm text-gray-400"></i>
-        <span :class="masqueLibelle">Profil</span>
-      </RouterLink>
-
       <RouterLink
         to="/parametres"
         class="flex items-center gap-3 rounded-lg px-3 py-2 font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
@@ -76,7 +84,7 @@ const handleLogout = async () => {
         :title="infobulle('Paramètres')"
         active-class="bg-gray-100 !text-gray-900"
       >
-        <i class="fa-regular fa-gear w-4 shrink-0 text-center text-sm text-gray-400"></i>
+        <i class="fa-solid fa-gear w-4 shrink-0 text-center text-sm text-gray-400"></i>
         <span :class="masqueLibelle">Paramètres</span>
       </RouterLink>
 

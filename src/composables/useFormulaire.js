@@ -1,4 +1,4 @@
-import { nextTick, reactive, ref } from 'vue'
+import { nextTick, reactive, watch } from 'vue'
 
 /**
  * Validation d'un formulaire au fil de la saisie.
@@ -6,23 +6,30 @@ import { nextTick, reactive, ref } from 'vue'
  * - Un champ est vérifié quand on le quitte, puis à chaque modification :
  *   pas d'erreur pendant la toute première saisie, mais elle disparaît dès
  *   que le champ redevient correct.
- * - Après une tentative d'envoi, tous les champs sont vérifiés en direct.
+ * - Après une tentative d'envoi, tous les champs sont vérifiés en direct
+ *   (formulaire en étapes : seulement ceux de l'étape validée).
  * - Une erreur renvoyée par le serveur reste affichée jusqu'à ce que son
  *   champ soit modifié.
  *
  * regles : { champ: () => message d'erreur, ou '' si le champ est valide }
  * options.correspondances : nom côté serveur → nom du champ
  *   (ex. { password_confirm: 'confirmation' })
+ * options.valeurs : objet réactif du formulaire (form), ou fonction qui le
+ *   renvoie (ex. () => editForm.value) ; chaque changement
+ *   de form[champ] vaut modification, quel que soit le composant (select,
+ *   éditeur de texte riche, date…), sans brancher d'événement champ par champ.
  *
- * Les champs portent l'attribut name="<champ>" : à l'envoi, le premier
+ * Repérage des champs : attribut name="<champ>" sur le champ, ou
+ * data-champ="<champ>" sur son FormField. Sur le <form>,
+ * @focusout="surSortie" marque le champ quitté ; à l'envoi, le premier
  * champ en erreur reçoit le focus.
  */
-export const useFormulaire = (regles, { correspondances = {} } = {}) => {
+export const useFormulaire = (regles, { correspondances = {}, valeurs = null } = {}) => {
   const champs = Object.keys(regles)
   const erreursLocales = reactive({})
   const erreursServeur = reactive({})
   const visites = reactive({})
-  const envoiTente = ref(false)
+  const enDirect = reactive({}) // champs vérifiés à chaque modification après un envoi
 
   const verifier = (champ) => {
     const message = regles[champ]() || ''
@@ -35,7 +42,7 @@ export const useFormulaire = (regles, { correspondances = {} } = {}) => {
   // (ex. la confirmation quand le mot de passe change).
   const reverifier = () => {
     for (const champ of champs) {
-      if (visites[champ] || envoiTente.value) verifier(champ)
+      if (visites[champ] || enDirect[champ]) verifier(champ)
     }
   }
 
@@ -49,16 +56,50 @@ export const useFormulaire = (regles, { correspondances = {} } = {}) => {
     reverifier()
   }
 
+  if (valeurs) {
+    // Objet réactif, ou fonction qui le renvoie (formulaire remplacé à chaque ouverture)
+    const lire = typeof valeurs === 'function' ? valeurs : () => valeurs
+    for (const champ of champs) {
+      watch(() => lire()?.[champ], () => modifier(champ), { deep: true })
+    }
+  }
+
+  // focusout sur le <form> : le champ quitté est retrouvé par son name ou son FormField
+  const surSortie = (event) => {
+    const repere = event.target?.closest?.('[data-champ], [name]')
+    const champ = repere?.dataset?.champ ?? repere?.getAttribute('name')
+    if (champ && champs.includes(champ)) quitter(champ)
+  }
+
+  const focaliser = (champ) => {
+    const el =
+      document.querySelector(`[name="${champ}"]:is(input, select, textarea)`) ??
+      document.querySelector(`[data-champ="${champ}"]`)?.querySelector('input, select, textarea, [contenteditable="true"]')
+    el?.focus()
+  }
+
   const erreur = (champ) => erreursLocales[champ] || erreursServeur[champ] || ''
 
   /** Vérifie tout avant l'envoi ; le premier champ en erreur reçoit le focus. */
-  const toutVerifier = () => {
-    envoiTente.value = true
-    for (const champ of champs) delete erreursServeur[champ]
-    const valide = champs.map(verifier).every(Boolean)
-    const premier = champs.find((c) => erreursLocales[c])
-    if (premier) document.querySelector(`[name="${premier}"]`)?.focus()
+  const toutVerifier = (selection = champs) => {
+    for (const champ of selection) {
+      enDirect[champ] = true
+      delete erreursServeur[champ]
+    }
+    const valide = selection.map(verifier).every(Boolean)
+    const premier = selection.find((c) => erreursLocales[c])
+    if (premier) focaliser(premier)
     return valide
+  }
+
+  /** Formulaire vidé (« Ajouter un autre ») : plus aucune erreur affichée. */
+  const reinitialiser = () => {
+    for (const champ of champs) {
+      delete enDirect[champ]
+      delete visites[champ]
+      delete erreursLocales[champ]
+      delete erreursServeur[champ]
+    }
   }
 
   /**
@@ -79,9 +120,9 @@ export const useFormulaire = (regles, { correspondances = {} } = {}) => {
     }
     // Après le rendu : les champs, désactivés pendant l'envoi, doivent être réactivés.
     const premier = champs.find((c) => erreursServeur[c])
-    if (premier) nextTick(() => document.querySelector(`[name="${premier}"]`)?.focus())
+    if (premier) nextTick(() => focaliser(premier))
     return generales.join(' ')
   }
 
-  return { erreur, quitter, modifier, toutVerifier, erreursDuServeur }
+  return { erreur, quitter, modifier, surSortie, toutVerifier, reinitialiser, erreursDuServeur }
 }

@@ -13,6 +13,7 @@
  *   - created (groupe créé)
  */
 import { ref, reactive, computed, watch } from 'vue'
+import { useFormulaire } from '../../composables/useFormulaire'
 import AppButton from '../ui/AppButton.vue'
 import FormField from '../ui/FormField.vue'
 import TextInput from '../ui/TextInput.vue'
@@ -31,8 +32,12 @@ const emit = defineEmits(['close', 'created'])
 
 const loading       = ref(false)
 const error         = ref('')
-const erreursChamps = ref({})
 const form = reactive({ promotion: '', nom: '', description: '' })
+const { erreur, surSortie, toutVerifier, reinitialiser, erreursDuServeur } = useFormulaire({
+  promotion: () => (form.promotion ? '' : 'Choisissez une promotion.'),
+  nom: () => (form.nom.trim() ? '' : 'Le nom est obligatoire.'),
+  description: () => '',
+}, { valeurs: form })
 
 const promotionOptions = computed(() =>
   props.promotions.map((p) => ({ value: String(p.id), label: p.nom }))
@@ -51,7 +56,7 @@ watch(
       description: '',
     })
     error.value = ''
-    erreursChamps.value = {}
+    reinitialiser()
   }
 )
 
@@ -59,13 +64,8 @@ const fermer = () => {
   if (!loading.value) emit('close')
 }
 
-const premier = (v) => (Array.isArray(v) ? v[0] : v)
-
 const handleCreer = async () => {
-  erreursChamps.value = {}
-  if (!form.promotion) erreursChamps.value.promotion = 'Choisissez une promotion.'
-  if (!form.nom.trim()) erreursChamps.value.nom = 'Le nom est obligatoire.'
-  if (Object.keys(erreursChamps.value).length) return
+  if (!toutVerifier()) return
 
   loading.value = true
   error.value   = ''
@@ -81,9 +81,7 @@ const handleCreer = async () => {
     if (data?.detail) {
       error.value = data.detail
     } else if (data && typeof data === 'object') {
-      erreursChamps.value = Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, premier(v)])
-      )
+      error.value = erreursDuServeur(data)
     } else {
       error.value = 'Erreur lors de la création du groupe.'
     }
@@ -112,9 +110,9 @@ const handleCreer = async () => {
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-        <form class="flex flex-col gap-4 px-6 py-5" @submit.prevent="handleCreer">
+        <form class="flex flex-col gap-4 px-6 py-5" novalidate @focusout="surSortie" @submit.prevent="handleCreer">
           <InfoBanner v-if="error" variant="error" :message="error" />
-          <FormField v-if="!promotionId" label="Promotion" required :error="erreursChamps.promotion">
+          <FormField v-if="!promotionId" label="Promotion" required :error="erreur('promotion')" data-champ="promotion">
             <AppSelect
               v-model="form.promotion"
               :options="promotionOptions"
@@ -122,10 +120,10 @@ const handleCreer = async () => {
               :disabled="loading"
             />
           </FormField>
-          <FormField label="Nom" required :error="erreursChamps.nom">
+          <FormField label="Nom" required :error="erreur('nom')" data-champ="nom">
             <TextInput v-model="form.nom" placeholder="Ex. : Équipe A" :disabled="loading" />
           </FormField>
-          <FormField label="Description" :error="erreursChamps.description">
+          <FormField label="Description" :error="erreur('description')" data-champ="description">
             <TextInput v-model="form.description" type="textarea" :rows="3" :disabled="loading" />
           </FormField>
           <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">

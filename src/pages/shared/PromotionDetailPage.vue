@@ -10,13 +10,13 @@ import AppSelect from '../../components/ui/AppSelect.vue'
 import FormField from '../../components/ui/FormField.vue'
 import TextInput from '../../components/ui/TextInput.vue'
 import CreerGroupeModal from '../../components/groupes/CreerGroupeModal.vue'
+import InscriptionApprenantsModal from '../../components/membres/InscriptionApprenantsModal.vue'
 import { useAuthStore } from '../../stores/auth'
 import {
   getPromotion,
   getInscriptions,
   getGroupes,
   getFormations,
-  inscrireApprenant,
   desinscrireApprenant,
   getFormateursPromotion,
   affecterFormateur,
@@ -102,32 +102,20 @@ const formateurOptions = computed(() =>
     }))
 )
 
-// ─── Modal inscription apprenant (Admin Organisme uniquement) ─────────────────
+// ─── Inscription d'apprenants (Admin Organisme uniquement) ───────────────────
 const showInscriptionModal = ref(false)
-const tousApprenants       = ref([])
-const apprenantChoisi      = ref('')
-const inscriptionLoading   = ref(false)
-const inscriptionError     = ref('')
-const inscriptionSuccess   = ref('')
 
-const inscriptionsIds = computed(() =>
-  new Set(inscriptions.value.map((i) => String(i.apprenant)))
-)
+const rechargerInscriptions = async () => {
+  inscriptions.value = await getInscriptions(tenantId, promotionId, { actif: 'true' })
+}
 
-const apprenantOptions = computed(() =>
-  tousApprenants.value
-    .filter(
-      (m) =>
-        m.actif &&
-        !inscriptionsIds.value.has(String(m.utilisateur))
-    )
-    .map((m) => ({
-      value: String(m.utilisateur),
-      label: m.utilisateur_prenom
-        ? `${m.utilisateur_prenom} ${m.utilisateur_nom} — ${m.utilisateur_email ?? ''}`
-        : `Apprenant #${m.utilisateur}`,
-    }))
-)
+// ─── Onglets ──────────────────────────────────────────────────────────────────
+const onglet = ref('apprenants')
+const onglets = computed(() => [
+  { cle: 'apprenants', libelle: 'Apprenants', icone: 'fa-user-graduate', nb: inscriptions.value.length },
+  { cle: 'formateurs', libelle: 'Formateurs', icone: 'fa-chalkboard-user', nb: formateursAffectes.value.length },
+  { cle: 'groupes', libelle: 'Groupes', icone: 'fa-user-group', nb: groupes.value.length },
+])
 
 // ─── Chargement ───────────────────────────────────────────────────────────────
 onMounted(async () => {
@@ -211,72 +199,6 @@ const handleAffecter = async () => {
     }
   } finally {
     affectationLoading.value = false
-  }
-}
-
-// ─── Modal inscription apprenant ──────────────────────────────────────────────
-const ouvrirModalInscription = async () => {
-  inscriptionError.value   = ''
-  inscriptionSuccess.value = ''
-  apprenantChoisi.value    = ''
-
-  if (tousApprenants.value.length === 0) {
-    try {
-      const membres = await getMembres(tenantId)
-      tousApprenants.value = membres.filter((m) => m.role === 'APPRENANT')
-    } catch {
-      inscriptionError.value = 'Impossible de charger la liste des apprenants.'
-    }
-  }
-
-  showInscriptionModal.value = true
-}
-
-const fermerModalInscription = () => {
-  showInscriptionModal.value = false
-  inscriptionError.value     = ''
-  inscriptionSuccess.value   = ''
-  apprenantChoisi.value      = ''
-}
-
-const handleInscrire = async () => {
-  if (!apprenantChoisi.value) {
-    inscriptionError.value = 'Veuillez sélectionner un apprenant.'
-    return
-  }
-
-  inscriptionLoading.value = true
-  inscriptionError.value   = ''
-  inscriptionSuccess.value = ''
-
-  try {
-    await inscrireApprenant(
-      tenantId,
-      parseInt(promotionId),
-      parseInt(apprenantChoisi.value)
-    )
-
-    inscriptions.value = await getInscriptions(tenantId, promotionId, { actif: 'true' })
-
-    inscriptionSuccess.value = 'Apprenant inscrit avec succès.'
-    apprenantChoisi.value    = ''
-  } catch (e) {
-    const data = e.response?.data
-    if (data?.apprenant) {
-      inscriptionError.value = Array.isArray(data.apprenant)
-        ? data.apprenant[0]
-        : data.apprenant
-    } else if (data?.apprenant_id) {
-      inscriptionError.value = Array.isArray(data.apprenant_id)
-        ? data.apprenant_id[0]
-        : data.apprenant_id
-    } else if (data?.detail) {
-      inscriptionError.value = data.detail
-    } else {
-      inscriptionError.value = "Une erreur est survenue lors de l'inscription."
-    }
-  } finally {
-    inscriptionLoading.value = false
   }
 }
 
@@ -458,234 +380,142 @@ const formatDate = (iso) =>
         <InfoBanner v-if="pageSuccess" variant="success" :message="pageSuccess" class="mt-4" />
         <InfoBanner v-if="pageWarning" variant="warning" :message="pageWarning" class="mt-4" />
 
-        <div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-
-          <!-- ── Colonne principale ─────────────────────────────────────────── -->
-          <div class="lg:col-span-2 flex flex-col gap-6">
-
-            <!-- Informations générales -->
-            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 class="mb-5 font-['Sora'] text-base font-semibold text-gray-900">
-                Informations
-              </h2>
-              <dl class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col gap-1">
-                  <dt class="font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                    Formation
-                  </dt>
-                  <dd class="font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">
-                    {{ nomFormation }}
-                  </dd>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <dt class="font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                    Statut
-                  </dt>
-                  <dd><StatusBadge :value="promotion.actif" type="promotion" /></dd>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <dt class="font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                    Date de début
-                  </dt>
-                  <dd class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-700">
-                    {{ formatDate(promotion.date_debut) }}
-                  </dd>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <dt class="font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                    Date de fin
-                  </dt>
-                  <dd class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-700">
-                    {{ promotion.date_fin ? formatDate(promotion.date_fin) : '—' }}
-                  </dd>
-                </div>
-                <div v-if="promotion.description" class="col-span-2 flex flex-col gap-1">
-                  <dt class="font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                    Description
-                  </dt>
-                  <dd class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-600">
-                    {{ promotion.description }}
-                  </dd>
-                </div>
-              </dl>
+        <!-- Informations : une seule bande -->
+        <div class="mt-6 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-sm">
+          <dl class="flex flex-wrap gap-x-10 gap-y-3">
+            <div>
+              <dt class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Formation</dt>
+              <dd class="font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">{{ nomFormation }}</dd>
             </div>
-
-            <!-- Apprenants inscrits -->
-            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div class="mb-4 flex items-center justify-between">
-                <h2 class="font-['Sora'] text-base font-semibold text-gray-900">
-                  Apprenants inscrits ({{ inscriptions.length }})
-                </h2>
-                <!-- Bouton inscription : Admin Organisme uniquement -->
-                <AppButton
-                  v-if="peutGerer"
-                  variant="secondary"
-                  icon="fa-solid fa-user-plus"
-                  @click="ouvrirModalInscription"
-                >
-                  Inscrire un apprenant
-                </AppButton>
-              </div>
-
-              <div v-if="inscriptions.length === 0" class="py-4 text-center font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
-                Aucun apprenant inscrit.
-              </div>
-
-              <ul v-else class="flex flex-col divide-y divide-slate-100">
-                <li
-                  v-for="ins in inscriptions"
-                  :key="ins.id"
-                  class="flex items-center justify-between py-2.5"
-                >
-                  <div class="flex items-center gap-3">
-                    <div class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 font-['Plus_Jakarta_Sans'] text-xs font-bold text-indigo-700">
-                      {{ ins.apprenant_prenom?.[0] }}{{ ins.apprenant_nom?.[0] }}
-                    </div>
-                    <div>
-                      <p class="font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">
-                        {{ ins.apprenant_prenom }} {{ ins.apprenant_nom }}
-                      </p>
-                      <p class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
-                        {{ ins.apprenant_email }}
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <RouterLink
-                      :to="`/apprenants/${ins.apprenant}`"
-                      class="text-xs text-indigo-600 hover:underline"
-                    >
-                      Voir
-                    </RouterLink>
-                    <button
-                      v-if="peutGerer"
-                      type="button"
-                      class="text-xs text-red-600 hover:underline"
-                      @click="demanderDesinscription(ins)"
-                    >
-                      Désinscrire
-                    </button>
-                  </div>
-                </li>
-              </ul>
+            <div>
+              <dt class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Période</dt>
+              <dd class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-700">
+                {{ formatDate(promotion.date_debut) }} → {{ promotion.date_fin ? formatDate(promotion.date_fin) : '…' }}
+              </dd>
             </div>
+            <div>
+              <dt class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Statut</dt>
+              <dd><StatusBadge :value="promotion.actif" type="promotion" /></dd>
+            </div>
+          </dl>
+          <p v-if="promotion.description" class="mt-3 border-t border-slate-100 pt-3 font-['Plus_Jakarta_Sans'] text-sm text-zinc-600">
+            {{ promotion.description }}
+          </p>
+        </div>
 
+        <!-- Onglets -->
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200">
+          <nav class="-mb-px flex gap-1" role="tablist">
+            <button
+              v-for="o in onglets"
+              :key="o.cle"
+              type="button"
+              role="tab"
+              :aria-selected="onglet === o.cle"
+              class="flex items-center gap-2 border-b-2 px-4 py-2.5 font-['Plus_Jakarta_Sans'] text-sm font-semibold transition"
+              :class="onglet === o.cle ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-zinc-500 hover:text-zinc-800'"
+              @click="onglet = o.cle"
+            >
+              <i class="fa-solid text-xs" :class="o.icone"></i>{{ o.libelle }}
+              <span class="rounded-full px-1.5 text-[11px]" :class="onglet === o.cle ? 'bg-indigo-50' : 'bg-slate-100'">{{ o.nb }}</span>
+            </button>
+          </nav>
+          <div class="pb-2">
+            <AppButton v-if="onglet === 'apprenants' && peutGerer" icon="fa-solid fa-user-plus" @click="showInscriptionModal = true">
+              Inscrire des apprenants
+            </AppButton>
+            <AppButton v-else-if="onglet === 'formateurs' && peutGerer" icon="fa-solid fa-plus" @click="ouvrirModalAffectation">
+              Affecter un formateur
+            </AppButton>
+            <AppButton v-else-if="onglet === 'groupes' && peutCreerGroupe" icon="fa-solid fa-plus" @click="showCreationGroupe = true">
+              Créer un groupe
+            </AppButton>
           </div>
+        </div>
 
-          <!-- ── Colonne latérale ───────────────────────────────────────────── -->
-          <div class="flex flex-col gap-6">
-
-            <!-- Détails -->
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 class="mb-3 font-['Sora'] text-sm font-semibold text-gray-900">Détails</h2>
-              <dl class="flex flex-col gap-3">
-                <div>
-                  <dt class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Identifiant</dt>
-                  <dd class="font-mono text-sm text-zinc-400">#{{ promotion.id }}</dd>
-                </div>
-                <div>
-                  <dt class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">Créée le</dt>
-                  <dd class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-700">
-                    {{ formatDate(promotion.date_creation) }}
-                  </dd>
-                </div>
-              </dl>
+        <div class="mt-4 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+          <!-- Apprenants inscrits -->
+          <template v-if="onglet === 'apprenants'">
+            <div v-if="inscriptions.length === 0" class="flex flex-col items-center gap-3 py-10 text-center">
+              <i class="fa-solid fa-user-graduate text-2xl text-zinc-300"></i>
+              <p class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">Aucun apprenant inscrit.</p>
+              <AppButton v-if="peutGerer" variant="secondary" icon="fa-solid fa-user-plus" @click="showInscriptionModal = true">
+                Inscrire des apprenants
+              </AppButton>
             </div>
-
-            <!-- Formateurs affectés -->
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div class="mb-4 flex items-center justify-between">
-                <h2 class="font-['Sora'] text-sm font-semibold text-gray-900">
-                  Formateurs ({{ formateursAffectes.length }})
-                </h2>
-                <!-- Bouton affectation : Admin Organisme uniquement -->
-                <AppButton
-                  v-if="peutGerer"
-                  variant="secondary"
-                  icon="fa-solid fa-plus"
-                  @click="ouvrirModalAffectation"
-                >
-                  Affecter
-                </AppButton>
-              </div>
-
-              <div v-if="formateursAffectes.length === 0" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
-                Aucun formateur affecté.
-              </div>
-
-              <ul v-else class="flex flex-col gap-2.5">
-                <li
-                  v-for="aff in formateursAffectes"
-                  :key="aff.id"
-                  class="flex items-center gap-3"
-                >
-                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 font-['Plus_Jakarta_Sans'] text-xs font-bold text-orange-700">
-                    {{ (aff.formateur_prenom?.[0] ?? '?') + (aff.formateur_nom?.[0] ?? '') }}
+            <ul v-else class="flex flex-col divide-y divide-slate-100">
+              <li v-for="ins in inscriptions" :key="ins.id" class="flex items-center justify-between gap-3 px-4 py-2.5">
+                <RouterLink :to="`/apprenants/${ins.apprenant}`" class="flex min-w-0 items-center gap-3">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-['Plus_Jakarta_Sans'] text-xs font-bold text-indigo-700">
+                    {{ ins.apprenant_prenom?.[0] }}{{ ins.apprenant_nom?.[0] }}
                   </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">
-                      {{ aff.formateur_prenom ? `${aff.formateur_prenom} ${aff.formateur_nom}` : `Formateur #${aff.formateur}` }}
+                  <div class="min-w-0">
+                    <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900 hover:text-indigo-700">
+                      {{ ins.apprenant_prenom }} {{ ins.apprenant_nom }}
                     </p>
-                    <p class="truncate font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
-                      {{ aff.formateur_email ?? '' }}
-                    </p>
+                    <p class="truncate font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">{{ ins.apprenant_email }}</p>
                   </div>
-                  <button
-                    v-if="peutGerer"
-                    type="button"
-                    class="shrink-0 text-xs text-red-600 hover:underline"
-                    @click="demanderRetraitFormateur(aff)"
-                  >
-                    Retirer
-                  </button>
-                </li>
-              </ul>
-            </div>
+                </RouterLink>
+                <button v-if="peutGerer" type="button" class="shrink-0 font-['Plus_Jakarta_Sans'] text-xs text-red-600 hover:underline" @click="demanderDesinscription(ins)">
+                  Désinscrire
+                </button>
+              </li>
+            </ul>
+          </template>
 
-            <!-- Groupes -->
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div class="mb-4 flex items-center justify-between">
-                <h2 class="font-['Sora'] text-sm font-semibold text-gray-900">
-                  Groupes ({{ groupes.length }})
-                </h2>
-                <AppButton
-                  v-if="peutCreerGroupe"
-                  variant="secondary"
-                  icon="fa-solid fa-plus"
-                  @click="showCreationGroupe = true"
-                >
-                  Créer
-                </AppButton>
-              </div>
+          <!-- Formateurs affectés -->
+          <template v-else-if="onglet === 'formateurs'">
+            <p v-if="formateursAffectes.length === 0" class="py-10 text-center font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">
+              Aucun formateur affecté.
+            </p>
+            <ul v-else class="flex flex-col divide-y divide-slate-100">
+              <li v-for="aff in formateursAffectes" :key="aff.id" class="flex items-center gap-3 px-4 py-2.5">
+                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 font-['Plus_Jakarta_Sans'] text-xs font-bold text-orange-700">
+                  {{ (aff.formateur_prenom?.[0] ?? '?') + (aff.formateur_nom?.[0] ?? '') }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">
+                    {{ aff.formateur_prenom ? `${aff.formateur_prenom} ${aff.formateur_nom}` : `Formateur #${aff.formateur}` }}
+                  </p>
+                  <p class="truncate font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">{{ aff.formateur_email ?? '' }}</p>
+                </div>
+                <button v-if="peutGerer" type="button" class="shrink-0 font-['Plus_Jakarta_Sans'] text-xs text-red-600 hover:underline" @click="demanderRetraitFormateur(aff)">
+                  Retirer
+                </button>
+              </li>
+            </ul>
+          </template>
 
-              <div v-if="groupes.length === 0" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
-                Aucun groupe.
-              </div>
-
-              <ul v-else class="flex flex-col gap-2">
-                <li
-                  v-for="groupe in groupes"
-                  :key="groupe.id"
-                  class="flex items-center justify-between"
-                >
-                  <RouterLink
-                    :to="`/groupes/${groupe.id}`"
-                    class="font-['Plus_Jakarta_Sans'] text-sm font-medium text-indigo-600 hover:underline"
-                  >
-                    {{ groupe.nom }}
-                  </RouterLink>
+          <!-- Groupes -->
+          <template v-else>
+            <p v-if="groupes.length === 0" class="py-10 text-center font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">Aucun groupe.</p>
+            <ul v-else class="flex flex-col divide-y divide-slate-100">
+              <li v-for="groupe in groupes" :key="groupe.id">
+                <RouterLink :to="`/groupes/${groupe.id}`" class="flex items-center justify-between px-4 py-3 hover:bg-slate-50">
+                  <span class="flex items-center gap-3 font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">
+                    <i class="fa-solid fa-user-group text-xs text-zinc-400"></i>{{ groupe.nom }}
+                  </span>
                   <span class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
                     {{ groupe.nb_membres }} membre{{ groupe.nb_membres !== 1 ? 's' : '' }}
+                    <i class="fa-solid fa-chevron-right ml-2 text-[10px]"></i>
                   </span>
-                </li>
-              </ul>
-            </div>
-
-          </div>
+                </RouterLink>
+              </li>
+            </ul>
+          </template>
         </div>
 
       </template>
     </div>
+
+    <InscriptionApprenantsModal
+      v-if="showInscriptionModal"
+      :tenant-id="tenantId"
+      :promotion="promotion"
+      :inscrits="inscriptions.map((i) => i.apprenant)"
+      @fermer="showInscriptionModal = false"
+      @inscrits="rechargerInscriptions"
+    />
 
     <CreerGroupeModal
       :ouvert="showCreationGroupe"
@@ -873,101 +703,6 @@ const formatDate = (iso) =>
       </div>
     </Teleport>
 
-    <!-- ── Modal : inscrire un apprenant ──────────────────────────────────────── -->
-    <Teleport to="body">
-      <div
-        v-if="showInscriptionModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-        @click.self="fermerModalInscription"
-      >
-        <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
-
-          <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <div>
-              <h2 class="font-['Sora'] text-base font-semibold text-gray-900">
-                Inscrire un apprenant
-              </h2>
-              <p class="mt-0.5 font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
-                {{ promotion?.nom }}
-              </p>
-            </div>
-            <button
-              type="button"
-              @click="fermerModalInscription"
-              class="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-slate-100"
-              aria-label="Fermer"
-            >
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          <div class="px-6 py-5">
-
-            <InfoBanner v-if="inscriptionSuccess" variant="success" :message="inscriptionSuccess" class="mb-4" />
-            <InfoBanner v-if="inscriptionError"   variant="error"   :message="inscriptionError"   class="mb-4" />
-
-            <div v-if="!inscriptionSuccess" class="flex flex-col gap-4">
-
-              <div
-                v-if="apprenantOptions.length === 0 && tousApprenants.length > 0"
-                class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
-              >
-                <p class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-500">
-                  Tous les apprenants actifs sont déjà inscrits dans cette promotion.
-                </p>
-              </div>
-
-              <template v-else>
-                <FormField
-                  label="Apprenant"
-                  hint="Seuls les apprenants actifs non encore inscrits sont affichés."
-                >
-                  <AppSelect
-                    v-model="apprenantChoisi"
-                    :options="apprenantOptions"
-                    placeholder="Sélectionner un apprenant…"
-                    :disabled="inscriptionLoading"
-                  />
-                </FormField>
-
-                <InfoBanner
-                  variant="info"
-                  message="Un apprenant peut être inscrit avant d'avoir activé son compte : il accédera à la promotion dès son activation."
-                />
-              </template>
-
-              <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
-                <AppButton
-                  type="button"
-                  variant="secondary"
-                  @click="fermerModalInscription"
-                  :disabled="inscriptionLoading"
-                >
-                  Annuler
-                </AppButton>
-                <AppButton
-                  v-if="apprenantOptions.length > 0"
-                  type="button"
-                  variant="primary"
-                  :loading="inscriptionLoading"
-                  :disabled="!apprenantChoisi"
-                  @click="handleInscrire"
-                >
-                  Inscrire
-                </AppButton>
-              </div>
-            </div>
-
-            <div v-else class="flex justify-end pt-2">
-              <AppButton variant="primary" @click="fermerModalInscription">
-                Fermer
-              </AppButton>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </Teleport>
 
   </AppLayout>
 </template>
