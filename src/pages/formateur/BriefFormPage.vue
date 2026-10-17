@@ -3,21 +3,25 @@
  * BriefFormPage — Formateur : création (/briefs/creer) et modification
  * (/briefs/:id/modifier) d'un brief.
  *
- * Création en deux étapes, sans rien enregistrer entre les deux :
+ * Création en trois étapes, sans rien enregistrer entre elles :
  *   1. Informations (promotion, module, catégorie, titre, description, dates)
- *   2. Contenu (sections, compétences visées, ressources) → « Terminer »
- *      enregistre le brief en brouillon et ouvre sa fiche.
- * Modification : tout sur une seule page.
+ *   2. Contenu (sections du brief)
+ *   3. Compétences visées et ressources, puis au choix :
+ *      « Enregistrer en brouillon » ou « Publier et assigner à toute la
+ *      promotion » ; retour à la liste des briefs dans les deux cas.
+ * Modification : tout sur une seule page, retour à la fiche du brief.
  *
  * - Promotion : parmi ses promotions ouvertes (non modifiable ensuite).
  * - Module principal obligatoire.
  * - Compétences visées : CompetenceNiveau (compétence + niveau) de tous les
- *   modules de la formation, celles du module principal en premier.
- * - Ressources : choisies dans la bibliothèque de l'organisme.
+ *   modules de la formation, module principal en premier (les autres
+ *   repliés) ; un seul niveau par compétence.
+ * - Ressources : choisies dans la bibliothèque, ou ajoutées sur place.
+ * Quitter la page avec des saisies non enregistrées demande confirmation.
  * Un brief qui a déjà des livrables n'est plus modifiable.
  */
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/layouts/AppLayout.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppButton from '../../components/ui/AppButton.vue'
@@ -27,10 +31,15 @@ import AppSelect from '../../components/ui/AppSelect.vue'
 import SearchInput from '../../components/ui/SearchInput.vue'
 import InfoBanner from '../../components/ui/InfoBanner.vue'
 import EditeurTexteRiche from '../../components/texte-riche/EditeurTexteRiche.vue'
+import RessourceModal from '../../components/ressources/RessourceModal.vue'
 import { SECTIONS_BRIEF } from '../../utils/brief'
 import { useAuthStore } from '../../stores/auth'
-import { getBrief, getBriefs, creerBrief, modifierBrief, getRessources, getCategories } from '../../services/activites'
+import { useFormulaire } from '../../composables/useFormulaire'
 import {
+  getBrief, getBriefs, creerBrief, modifierBrief, getRessources, getCategories, assignerPlusieurs,
+} from '../../services/activites'
+import {
+  getInscriptions,
   getPromotions,
   getModules,
   getCompetences,
@@ -73,15 +82,33 @@ const form = reactive({
   competence_niveaux: [],
   ressources: [],
 })
-const erreurs      = ref({})
 const globalError  = ref('')
 const envoi        = ref(false)
 const etape        = ref(1) // création uniquement
 
-// Champs de l'étape 1 (pour y revenir si le serveur y signale une erreur)
+// Champs des étapes 1 et 2 (pour y revenir si le serveur y signale une erreur)
 const CHAMPS_ETAPE_1 = ['promotion', 'module', 'categorie', 'titre', 'description', 'date_debut', 'date_limite']
+const CHAMPS_ETAPE_2 = SECTIONS_BRIEF.map((s) => s.cle)
+const ETAPES = ['Informations', 'Contenu', 'Compétences et ressources']
 const afficherEtape = (n) => edition.value || etape.value === n
 const rechercheRessource = ref('')
+const rechercheCompetence = ref('')
+const modulesOuverts = ref(new Set()) // modules dépliés en plus du module principal
+const showRessourceModal = ref(false)
+
+// ─── Saisie non enregistrée ───────────────────────────────────────────────────
+const etatInitial = ref('')
+const enregistre = ref(false)
+const modifie = computed(() => !!etatInitial.value && !enregistre.value && JSON.stringify(form) !== etatInitial.value)
+
+onBeforeRouteLeave(() => {
+  if (modifie.value) return window.confirm('Quitter sans enregistrer ? Les informations saisies seront perdues.')
+})
+const avantDechargement = (e) => {
+  if (modifie.value) e.preventDefault()
+}
+window.addEventListener('beforeunload', avantDechargement)
+onBeforeUnmount(() => window.removeEventListener('beforeunload', avantDechargement))
 
 // ISO ↔ valeur d'un <input type="datetime-local">
 const versLocal = (iso) => {
@@ -143,6 +170,7 @@ onMounted(async () => {
     error.value = 'Impossible de charger le formulaire.'
   } finally {
     loading.value = false
+    etatInitial.value = JSON.stringify(form)
   }
 })
 
@@ -198,11 +226,12 @@ const groupes = computed(() => {
     if (String(b.id) === form.module) return 1
     return a.ordre - b.ordre
   })
+  const q = rechercheCompetence.value.trim().toLowerCase()
   return ordonnes
     .map((m) => ({
       module: m,
       competences: competences.value
-        .filter((c) => c.module === m.id)
+        .filter((c) => c.module === m.id && (!q || c.nom.toLowerCase().includes(q)))
         .map((c) => ({
           competence: c,
           niveaux: competenceNiveaux.value
@@ -214,10 +243,37 @@ const groupes = computed(() => {
     .filter((g) => g.competences.length > 0)
 })
 
-const basculerCn = (id) => {
-  const i = form.competence_niveaux.indexOf(id)
-  if (i === -1) form.competence_niveaux.push(id)
-  else form.competence_niveaux.splice(i, 1)
+// Un seul niveau par compétence : choisir un niveau remplace l'autre
+const basculerCn = (cn) => {
+  if (form.competence_niveaux.includes(cn.id)) {
+    form.competence_niveaux = form.competence_niveaux.filter((id) => id !== cn.id)
+    return
+  }
+  const memeCompetence = new Set(
+    competenceNiveaux.value.filter((x) => x.competence === cn.competence).map((x) => x.id)
+  )
+  form.competence_niveaux = [...form.competence_niveaux.filter((id) => !memeCompetence.has(id)), cn.id]
+}
+
+// Module principal et modules ayant une compétence choisie : dépliés d'office
+const estOuvert = (g) =>
+  String(g.module.id) === form.module ||
+  !!rechercheCompetence.value.trim() ||
+  modulesOuverts.value.has(g.module.id) ||
+  nbChoisies(g) > 0
+const basculerModule = (g) => {
+  const ouverts = new Set(modulesOuverts.value)
+  ouverts.has(g.module.id) ? ouverts.delete(g.module.id) : ouverts.add(g.module.id)
+  modulesOuverts.value = ouverts
+}
+const nbChoisies = (g) =>
+  g.competences.reduce((n, c) => n + c.niveaux.filter((cn) => form.competence_niveaux.includes(cn.id)).length, 0)
+
+// Ressource ajoutée sur place : rejoint la bibliothèque, cochée d'office
+const ressourceAjoutee = (r) => {
+  ressources.value = [r, ...ressources.value]
+  form.ressources = [...form.ressources, r.id]
+  showRessourceModal.value = false
 }
 
 const ressourcesFiltrees = computed(() => {
@@ -227,49 +283,73 @@ const ressourcesFiltrees = computed(() => {
 
 const premier = (v) => (Array.isArray(v) ? v[0] : v)
 
-const erreursEtape1 = () => {
-  const e = {}
-  if (!form.promotion) e.promotion = 'Choisissez une promotion.'
-  if (!form.module) e.module = 'Le module est obligatoire.'
-  if (!form.titre.trim()) e.titre = 'Le titre est obligatoire.'
-  if (!form.description.trim()) e.description = 'La description est obligatoire.'
-  if (!form.date_debut) e.date_debut = 'La date de début est obligatoire.'
-  else if (form.date_debut.slice(0, 10) < aujourdhui && form.date_debut.slice(0, 10) !== debutInitial.value.slice(0, 10)) {
-    e.date_debut = "La date de début ne peut pas être avant aujourd'hui."
-  }
-  if (!form.date_limite) e.date_limite = 'La date limite est obligatoire.'
-  if (form.date_debut && form.date_limite && form.date_limite <= form.date_debut) {
-    e.date_limite = 'La date limite doit être après la date de début.'
-  }
-  return e
-}
+// ─── Validation au fil de la saisie (useFormulaire) ──────────────────────────
+const sansErreur = () => ''
+// Texte riche vide : « <p></p> » ne compte pas comme rempli
+const texteVide = (html) => !(html ?? '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
 
-const erreursEtape2 = () => {
-  const e = {}
-  SECTIONS_BRIEF.filter((s) => s.obligatoire && !form[s.cle]).forEach((s) => {
-    e[s.cle] = `${s.titre} : ce champ est obligatoire.`
-  })
-  return e
+const regles = {
+  promotion: () => (form.promotion ? '' : 'Choisissez une promotion.'),
+  module: () => (form.module ? '' : 'Le module est obligatoire.'),
+  categorie: sansErreur,
+  titre: () => (form.titre.trim() ? '' : 'Le titre est obligatoire.'),
+  description: () => (form.description.trim() ? '' : 'La description est obligatoire.'),
+  date_debut: () => {
+    if (!form.date_debut) return 'La date de début est obligatoire.'
+    const jour = form.date_debut.slice(0, 10)
+    if (jour < aujourdhui && jour !== debutInitial.value.slice(0, 10)) return "La date de début ne peut pas être avant aujourd'hui."
+    return ''
+  },
+  date_limite: () => {
+    if (!form.date_limite) return 'La date limite est obligatoire.'
+    if (form.date_debut && form.date_limite <= form.date_debut) return 'La date limite doit être après la date de début.'
+    return ''
+  },
+  ...Object.fromEntries(SECTIONS_BRIEF.map((s) => [
+    s.cle,
+    () => (s.obligatoire && texteVide(form[s.cle]) ? `${s.titre} : ce champ est obligatoire.` : ''),
+  ])),
+  // Erreurs du serveur seulement
+  competence_niveaux: sansErreur,
+  ressources: sansErreur,
 }
+const { erreur, surSortie, toutVerifier, erreursDuServeur } = useFormulaire(regles, { valeurs: form })
 
-// Création : « Suivant » vérifie l'étape 1 sans rien enregistrer
+// Création : « Suivant » vérifie l'étape en cours sans rien enregistrer
 const suivant = () => {
-  erreurs.value = erreursEtape1()
-  if (Object.keys(erreurs.value).length) return
+  if (!toutVerifier(etape.value === 1 ? CHAMPS_ETAPE_1 : CHAMPS_ETAPE_2)) return
   globalError.value = ''
-  etape.value = 2
+  etape.value += 1
   window.scrollTo({ top: 0 })
 }
 
 const precedent = () => {
-  etape.value = 1
+  etape.value = Math.max(1, etape.value - 1)
   window.scrollTo({ top: 0 })
 }
 
-const enregistrer = async () => {
-  erreurs.value = { ...erreursEtape1(), ...erreursEtape2() }
-  if (Object.keys(erreurs.value).length) {
-    if (!edition.value && CHAMPS_ETAPE_1.some((c) => erreurs.value[c])) etape.value = 1
+// Erreur dans une étape précédente : on y revient
+const revenirSurErreur = () => {
+  if (edition.value) return
+  if (CHAMPS_ETAPE_1.some((c) => erreur(c))) etape.value = 1
+  else if (CHAMPS_ETAPE_2.some((c) => erreur(c))) etape.value = 2
+}
+
+const nomBrief = () => `« ${form.titre.trim()} »`
+
+// Publication : assigné à tous les inscrits actifs, puis publié (ils sont prévenus)
+const publierEtAssigner = async (brief) => {
+  const inscrits = await getInscriptions(tenantId, brief.promotion, { actif: 'true' })
+  if (inscrits.length) {
+    await assignerPlusieurs(tenantId, { brief: brief.id, apprenants: inscrits.map((i) => i.apprenant), groupes: [] })
+  }
+  await modifierBrief(tenantId, brief.id, { statut: 'PUBLIE' })
+  return inscrits.length
+}
+
+const enregistrer = async (publier = false) => {
+  if (!toutVerifier()) {
+    revenirSurErreur()
     return
   }
   envoi.value = true
@@ -288,20 +368,43 @@ const enregistrer = async () => {
   }
 
   try {
-    let brief
     if (edition.value) {
-      brief = await modifierBrief(tenantId, briefId, payload)
-    } else {
-      // « Terminer » : enregistré en brouillon, publié ensuite depuis la fiche
-      brief = await creerBrief(tenantId, { ...payload, promotion: parseInt(form.promotion), statut: 'BROUILLON' })
+      await modifierBrief(tenantId, briefId, payload)
+      enregistre.value = true
+      router.push(`/briefs/${briefId}`)
+      return
     }
-    router.push(`/briefs/${brief.id}`)
+
+    const brief = await creerBrief(tenantId, { ...payload, promotion: parseInt(form.promotion), statut: 'BROUILLON' })
+    enregistre.value = true
+    let retourBrief = {
+      variant: 'success',
+      message: `Brief ${nomBrief()} enregistré en brouillon : publiez-le depuis sa fiche quand il est prêt.`,
+      briefId: brief.id,
+    }
+    if (publier) {
+      try {
+        const nb = await publierEtAssigner(brief)
+        retourBrief.message = nb
+          ? `Brief ${nomBrief()} publié et assigné aux ${nb} apprenant${nb > 1 ? 's' : ''} de la promotion.`
+          : `Brief ${nomBrief()} publié. Aucun apprenant n'est encore inscrit dans la promotion.`
+      } catch (e) {
+        // Le brief existe : seule la publication reste à faire, depuis sa fiche
+        retourBrief = {
+          variant: 'warning',
+          message: `Brief ${nomBrief()} enregistré en brouillon, mais pas publié : ${
+            premier(e.response?.data?.date_limite) || e.response?.data?.detail || 'réessayez depuis sa fiche'
+          }.`,
+          briefId: brief.id,
+        }
+      }
+    }
+    router.push({ path: '/briefs', state: { retourBrief } })
   } catch (err) {
     const data = err.response?.data
     if (typeof data === 'object' && data && !Array.isArray(data) && !data.detail) {
-      erreurs.value = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, premier(v)]))
-      globalError.value = premier(data.non_field_errors) || 'Veuillez corriger les champs indiqués.'
-      if (!edition.value && CHAMPS_ETAPE_1.some((c) => erreurs.value[c])) etape.value = 1
+      globalError.value = erreursDuServeur(data) || 'Veuillez corriger les champs indiqués.'
+      revenirSurErreur()
     } else {
       globalError.value = data?.detail || premier(data) || "Impossible d'enregistrer le brief."
     }
@@ -317,15 +420,15 @@ const enregistrer = async () => {
 
       <PageHeader :titre="edition ? 'Modifier le brief' : 'Nouveau brief'">
         <template #actions>
-          <!-- Création, étape « Contenu » : retour aux informations (saisies conservées) -->
+          <!-- Création, étapes 2 et 3 : étape précédente (saisies conservées) -->
           <AppButton
-            v-if="!edition && etape === 2"
+            v-if="!edition && etape > 1"
             variant="secondary"
             icon="fa-solid fa-arrow-left"
             :disabled="envoi"
             @click="precedent"
           >
-            Retour aux informations
+            Étape précédente
           </AppButton>
           <AppButton v-else variant="secondary" icon="fa-solid fa-arrow-left" @click="router.back()">Retour</AppButton>
         </template>
@@ -353,7 +456,7 @@ const enregistrer = async () => {
 
       <!-- Étapes (création) -->
       <ol v-if="!loading && !error && !nonModifiable && !edition && promotions.length" class="mt-6 flex items-center gap-3 font-['Plus_Jakarta_Sans'] text-sm">
-        <li v-for="(nom, i) in ['Informations', 'Contenu']" :key="nom" class="flex items-center gap-3">
+        <li v-for="(nom, i) in ETAPES" :key="nom" class="flex items-center gap-3">
           <span v-if="i > 0" class="h-px w-10 bg-slate-300"></span>
           <span
             class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
@@ -366,7 +469,7 @@ const enregistrer = async () => {
         </li>
       </ol>
 
-      <form v-if="!loading && !error && !nonModifiable && (edition || promotions.length)" class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3" @submit.prevent="edition || etape === 2 ? enregistrer() : suivant()">
+      <form v-if="!loading && !error && !nonModifiable && (edition || promotions.length)" class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3" novalidate @focusout="surSortie" @submit.prevent="edition || etape === 3 ? enregistrer() : suivant()">
 
         <!-- Colonne principale -->
         <div class="flex flex-col gap-6 lg:col-span-2">
@@ -374,28 +477,28 @@ const enregistrer = async () => {
 
           <div v-if="afficherEtape(1)" class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Promotion" required :error="erreurs.promotion">
+              <FormField label="Promotion" required :error="erreur('promotion')" data-champ="promotion">
                 <AppSelect v-model="form.promotion" :options="promotionOptions" placeholder="Choisir…" :disabled="edition || envoi" />
               </FormField>
-              <FormField label="Module principal" required :error="erreurs.module">
+              <FormField label="Module principal" required :error="erreur('module')" data-champ="module">
                 <AppSelect v-model="form.module" :options="moduleOptions" placeholder="Choisir…" :disabled="!form.promotion || envoi" />
               </FormField>
             </div>
-            <FormField label="Catégorie" :error="erreurs.categorie" hint="Facultatif — pour classer (brief projet, TP, atelier, veille…).">
+            <FormField label="Catégorie" :error="erreur('categorie')" data-champ="categorie" hint="Facultatif — pour classer (brief projet, TP, atelier, veille…).">
               <AppSelect v-model="form.categorie" :options="categorieOptions" placeholder-selectable
                          :placeholder="categorieOptions.length ? 'Aucune' : 'Aucune catégorie définie par l’organisme'" :disabled="envoi" />
             </FormField>
-            <FormField label="Titre" required :error="erreurs.titre">
+            <FormField label="Titre" required :error="erreur('titre')" data-champ="titre">
               <TextInput v-model="form.titre" placeholder="Ex. : Site vitrine d'une boulangerie" :disabled="envoi" />
             </FormField>
-            <FormField label="Description" required :error="erreurs.description" hint="Résumé court, affiché dans les listes.">
+            <FormField label="Description" required :error="erreur('description')" data-champ="description" hint="Résumé court, affiché dans les listes.">
               <TextInput v-model="form.description" type="textarea" :rows="2" :disabled="envoi" />
             </FormField>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Date de début" required :error="erreurs.date_debut" hint="Les dépôts sont possibles à partir de cette date.">
+              <FormField label="Date de début" required :error="erreur('date_debut')" data-champ="date_debut" hint="Les dépôts sont possibles à partir de cette date.">
                 <TextInput v-model="form.date_debut" type="datetime-local" :min="minDebut" :disabled="envoi" />
               </FormField>
-              <FormField label="Date limite" required :error="erreurs.date_limite" hint="Un dépôt après cette date est accepté mais marqué en retard.">
+              <FormField label="Date limite" required :error="erreur('date_limite')" data-champ="date_limite" hint="Un dépôt après cette date est accepté mais marqué en retard.">
                 <TextInput v-model="form.date_limite" type="datetime-local" :disabled="envoi" />
               </FormField>
             </div>
@@ -409,14 +512,15 @@ const enregistrer = async () => {
               :key="s.cle"
               :label="s.titre"
               :required="s.obligatoire"
-              :error="erreurs[s.cle]"
+              :error="erreur(s.cle)"
+              :data-champ="s.cle"
             >
-              <EditeurTexteRiche v-model="form[s.cle]" :disabled="envoi" :invalide="!!erreurs[s.cle]" />
+              <EditeurTexteRiche v-model="form[s.cle]" :disabled="envoi" :invalide="!!erreur(s.cle)" />
             </FormField>
           </div>
 
           <!-- Compétences visées -->
-          <div v-if="afficherEtape(2)" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div v-if="afficherEtape(3)" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="mb-1 flex items-baseline justify-between">
               <h2 class="font-['Sora'] text-base font-semibold text-gray-900">Compétences visées</h2>
               <span class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
@@ -424,24 +528,38 @@ const enregistrer = async () => {
               </span>
             </div>
             <p class="mb-4 font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
-              Choisissez, pour chaque compétence travaillée, le niveau visé.
-              Les compétences du module principal sont proposées en premier. Une compétence
-              déjà visée par un autre brief de la promotion ne peut pas l'être à nouveau.
+              Un seul niveau par compétence. Une compétence déjà visée par un autre brief
+              de la promotion ne peut pas l'être à nouveau.
             </p>
-            <InfoBanner v-if="erreurs.competence_niveaux" variant="error" :message="erreurs.competence_niveaux" class="mb-3" />
+            <InfoBanner v-if="erreur('competence_niveaux')" variant="error" :message="erreur('competence_niveaux')" class="mb-3" />
 
             <p v-if="!form.promotion" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">Choisissez d'abord une promotion.</p>
-            <p v-else-if="groupes.length === 0" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
-              Aucune compétence décrite par niveau dans cette formation.
-            </p>
-
-            <div v-for="g in groupes" :key="g.module.id" class="mb-5 last:mb-0">
-              <p class="mb-2 font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide"
-                 :class="String(g.module.id) === form.module ? 'text-indigo-600' : 'text-zinc-400'">
-                {{ g.module.nom }}
-                <span v-if="String(g.module.id) === form.module" class="normal-case tracking-normal">· module principal</span>
+            <template v-else>
+              <SearchInput v-model="rechercheCompetence" placeholder="Rechercher une compétence…" class="mb-4" />
+              <p v-if="groupes.length === 0" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
+                {{ rechercheCompetence ? 'Aucune compétence trouvée.' : 'Aucune compétence décrite par niveau dans cette formation.' }}
               </p>
-              <div class="flex flex-col gap-3">
+            </template>
+
+            <div v-for="g in groupes" :key="g.module.id" class="mb-3 rounded-xl border border-slate-100 last:mb-0">
+              <button
+                type="button"
+                class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                :aria-expanded="estOuvert(g)"
+                @click="basculerModule(g)"
+              >
+                <span class="font-['Plus_Jakarta_Sans'] text-xs font-semibold uppercase tracking-wide"
+                      :class="String(g.module.id) === form.module ? 'text-indigo-600' : 'text-zinc-500'">
+                  {{ g.module.nom }}
+                  <span v-if="String(g.module.id) === form.module" class="normal-case tracking-normal">· module principal</span>
+                </span>
+                <span class="flex shrink-0 items-center gap-2 font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
+                  <span v-if="nbChoisies(g)" class="rounded-full bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-700">{{ nbChoisies(g) }} choisie{{ nbChoisies(g) > 1 ? 's' : '' }}</span>
+                  {{ g.competences.length }} compétence{{ g.competences.length > 1 ? 's' : '' }}
+                  <i class="fa-solid fa-chevron-down text-[10px] transition" :class="{ 'rotate-180': estOuvert(g) }"></i>
+                </span>
+              </button>
+              <div v-if="estOuvert(g)" class="flex flex-col gap-3 px-3 pb-3">
                 <div v-for="c in g.competences" :key="c.competence.id" class="rounded-xl border border-slate-100 p-3">
                   <p class="font-['Plus_Jakarta_Sans'] text-sm font-medium text-gray-900">{{ c.competence.nom }}</p>
                   <div class="mt-2 flex flex-wrap gap-2">
@@ -456,7 +574,7 @@ const enregistrer = async () => {
                           : 'border-slate-200 text-zinc-600 hover:border-indigo-300'"
                       :aria-pressed="form.competence_niveaux.includes(cn.id)"
                       :disabled="briefQuiVise.has(cn.id) && !form.competence_niveaux.includes(cn.id)"
-                      @click="basculerCn(cn.id)"
+                      @click="basculerCn(cn)"
                     >
                       <i v-if="form.competence_niveaux.includes(cn.id)" class="fa-solid fa-check text-[10px]"></i>
                       <i v-else-if="briefQuiVise.has(cn.id)" class="fa-solid fa-lock text-[9px]"></i>
@@ -484,28 +602,40 @@ const enregistrer = async () => {
         </div>
 
         <!-- Colonne latérale -->
-        <div class="flex flex-col gap-6">
-          <!-- Récapitulatif de l'étape 1 (création, étape 2) -->
-          <div v-if="!edition && etape === 2" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:-mx-1 lg:px-1 lg:pb-1">
+          <!-- Récapitulatif de l'étape 1 (création, étapes 2 et 3) -->
+          <div v-if="!edition && etape > 1" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 class="mb-2 font-['Sora'] text-sm font-semibold text-gray-900">{{ form.titre }}</h2>
             <p class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
               {{ promotionChoisie?.nom }} · {{ moduleOptions.find((m) => m.value === form.module)?.label }}
               <template v-if="form.categorie"> · {{ categorieOptions.find((c) => c.value === form.categorie)?.label }}</template>
             </p>
-            <button type="button" class="mt-2 font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline" @click="precedent">
+            <button type="button" class="mt-2 font-['Plus_Jakarta_Sans'] text-xs text-indigo-600 hover:underline" @click="etape = 1">
               Modifier les informations
             </button>
           </div>
-          <div v-if="afficherEtape(2)" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 class="mb-1 font-['Sora'] text-sm font-semibold text-gray-900">Ressources</h2>
+          <div v-if="afficherEtape(3)" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="mb-1 flex items-center justify-between gap-2">
+              <h2 class="font-['Sora'] text-sm font-semibold text-gray-900">
+                Ressources<template v-if="form.ressources.length"> ({{ form.ressources.length }})</template>
+              </h2>
+              <button type="button" class="font-['Plus_Jakarta_Sans'] text-xs font-semibold text-indigo-600 hover:underline" :disabled="envoi" @click="showRessourceModal = true">
+                <i class="fa-solid fa-plus mr-1"></i>Nouvelle ressource
+              </button>
+            </div>
             <p class="mb-3 font-['Plus_Jakarta_Sans'] text-xs text-zinc-500">
-              Choisies dans la bibliothèque.
-              <RouterLink to="/ressources" class="text-indigo-600 hover:underline">Gérer la bibliothèque</RouterLink>
+              Cochez-les dans la bibliothèque, ou ajoutez un fichier ou un lien.
             </p>
             <SearchInput v-if="ressources.length > 5" v-model="rechercheRessource" placeholder="Filtrer…" class="mb-3" />
-            <p v-if="ressources.length === 0" class="font-['Plus_Jakarta_Sans'] text-sm text-zinc-400">
-              La bibliothèque est vide.
-            </p>
+            <button
+              v-if="ressources.length === 0"
+              type="button"
+              class="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-5 font-['Plus_Jakarta_Sans'] text-sm text-zinc-500 hover:border-indigo-300 hover:text-indigo-600"
+              @click="showRessourceModal = true"
+            >
+              <i class="fa-solid fa-file-arrow-up text-lg"></i>
+              Bibliothèque vide : ajouter une ressource
+            </button>
             <div v-else class="flex max-h-72 flex-col divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
               <label v-for="r in ressourcesFiltrees" :key="r.id" class="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-slate-50">
                 <input v-model="form.ressources" type="checkbox" :value="r.id" class="h-4 w-4 rounded border-slate-300 text-indigo-600" />
@@ -519,22 +649,35 @@ const enregistrer = async () => {
             <template v-if="edition">
               <AppButton type="submit" :loading="envoi" :disabled="envoi">Enregistrer</AppButton>
             </template>
-            <template v-else-if="etape === 1">
+            <template v-else-if="etape < 3">
               <AppButton type="submit" icon="fa-solid fa-arrow-right">Suivant</AppButton>
+              <AppButton v-if="etape > 1" variant="secondary" icon="fa-solid fa-arrow-left" @click="precedent">Étape précédente</AppButton>
               <p class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
-                Étape suivante : contenu, compétences visées et ressources.
+                Étape suivante : {{ ETAPES[etape].toLowerCase() }}.
               </p>
             </template>
             <template v-else>
-              <AppButton type="submit" :loading="envoi" :disabled="envoi">Terminer</AppButton>
-              <AppButton variant="secondary" icon="fa-solid fa-arrow-left" :disabled="envoi" @click="precedent">Retour</AppButton>
+              <AppButton icon="fa-solid fa-paper-plane" :loading="envoi" :disabled="envoi" @click="enregistrer(true)">
+                Publier et assigner à la promotion
+              </AppButton>
+              <AppButton type="submit" variant="secondary" icon="fa-solid fa-floppy-disk" :disabled="envoi">
+                Enregistrer en brouillon
+              </AppButton>
               <p class="font-['Plus_Jakarta_Sans'] text-xs text-zinc-400">
-                Le brief est enregistré en brouillon : vous le publierez depuis sa fiche.
+                Publier : tous les apprenants inscrits le reçoivent et sont prévenus.
+                Brouillon : invisible pour les apprenants, à publier depuis sa fiche.
               </p>
             </template>
           </div>
         </div>
       </form>
     </div>
+
+    <RessourceModal
+      v-if="showRessourceModal"
+      :tenant-id="tenantId"
+      @fermer="showRessourceModal = false"
+      @enregistree="ressourceAjoutee"
+    />
   </AppLayout>
 </template>
