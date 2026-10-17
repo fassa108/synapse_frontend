@@ -60,6 +60,11 @@ api.interceptors.response.use(
       router.push({ name: 'organisme-suspendu' })
       return Promise.reject(error)
     }
+    if (code === 'abonnement_expire') {
+      useAuthStore().marquerAbonnementExpire()
+      router.push({ name: 'organisme-suspendu' })
+      return Promise.reject(error)
+    }
     if (code === 'membre_suspendu') {
       useAuthStore().marquerAccesSuspendu()
       router.push({ name: 'organisme-suspendu' })

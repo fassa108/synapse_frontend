@@ -43,15 +43,22 @@ export const deposerDemandeInscription = async (payload) => {
   return response.data
 }
 
-// { nom_organisme, email, statut, montant }
+// { nom_organisme, email, statut, montant, mode_test }
 export const recupererInscriptionAPayer = async (reference) => {
   const response = await publicApi.get(`demandes-inscription/paiement/${reference}/`)
   return response.data
 }
 
-// Paiement simulé. moyen : 'WAVE' | 'ORANGE_MONEY'
-export const payerInscription = async (reference, moyen, telephone) => {
-  const response = await publicApi.post(`demandes-inscription/paiement/${reference}/`, { moyen, telephone })
+// Crée la facture PayDunya. Renvoie { url } : la page de paiement PayDunya.
+export const initierPaiement = async (reference) => {
+  const response = await publicApi.post(`demandes-inscription/paiement/${reference}/`)
+  return response.data
+}
+
+// Retour de PayDunya (?token=…) : le backend relit la facture chez PayDunya.
+// Renvoie le paiement : statut 'REUSSI' | 'EN_ATTENTE' | 'ANNULE' | 'ECHEC'.
+export const confirmerPaiement = async (reference, token) => {
+  const response = await publicApi.post(`demandes-inscription/paiement/${reference}/confirmer/`, { token })
   return response.data
 }
 

@@ -3,7 +3,7 @@
  * DemandesInscriptionPage — Admin SaaS
  *
  * Historique des inscriptions déposées depuis la page d'accueil.
- * Le paiement (simulé) valide l'inscription : l'organisme est alors créé
+ * Le paiement (PayDunya) valide l'inscription : l'organisme est alors créé
  * automatiquement, sans action de l'admin SaaS.
  */
 import { onMounted, ref, watch } from 'vue'
@@ -160,17 +160,30 @@ const selection = ref(null)
                 </div>
                 <div>
                   <dt class="text-xs text-zinc-400">Moyen</dt>
-                  <dd class="text-zinc-800">{{ selection.paiement.moyen_libelle }} · {{ selection.paiement.telephone }}</dd>
+                  <dd class="text-zinc-800">
+                    {{ selection.paiement.moyen_libelle }}<template v-if="selection.paiement.telephone"> · {{ selection.paiement.telephone }}</template>
+                  </dd>
                 </div>
                 <div>
                   <dt class="text-xs text-zinc-400">Référence</dt>
-                  <dd class="font-mono text-zinc-800">{{ selection.paiement.reference_transaction }}</dd>
+                  <dd class="break-all font-mono text-zinc-800">{{ selection.paiement.reference_transaction }}</dd>
                 </div>
                 <div>
                   <dt class="text-xs text-zinc-400">Payé le</dt>
-                  <dd class="text-zinc-800">{{ formatDate(selection.paiement.date_paiement) }}</dd>
+                  <dd class="text-zinc-800">
+                    {{ formatDate(selection.paiement.date_confirmation || selection.paiement.date_paiement) }}
+                  </dd>
                 </div>
               </dl>
+              <a
+                v-if="selection.paiement.url_recu"
+                :href="selection.paiement.url_recu"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                <i class="fa-solid fa-receipt text-xs"></i> Reçu PayDunya
+              </a>
             </div>
             <p v-else class="text-sm text-zinc-500">
               Le formulaire a été rempli, mais le paiement n'a pas été effectué : aucun organisme n'a été créé.
